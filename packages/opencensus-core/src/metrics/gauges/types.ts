@@ -14,15 +14,35 @@
  * limitations under the License.
  */
 
-import {Clock} from '../../internal/clock';
-import {Metric} from '../export/types';
+import {Metric, TimeSeries} from '../export/types';
 
 export interface Meter {
   /**
    * Provides a Metric with one or more TimeSeries.
    *
-   * @param clock the clock used to get the time.
-   * @return a Metric.
+   * @returns {Metric} The Metric.
    */
-  getMetric(clock: Clock): Metric;
+  getMetric(): Metric;
+}
+
+export interface Point {
+  /**
+   * Adds the given value to the current value. The values can be negative.
+   *
+   * @param {number} amt The value to add.
+   */
+  add(amt: number): void;
+
+  /**
+   * Sets the given value.
+   *
+   * @param  {number} val The new value.
+   */
+  set(val: number): void;
+
+  /**
+   * @param {number} timestamp The time at which the gauge is recorded.
+   * @returns {TimeSeries} The TimeSeries.
+   */
+  getTimeSeries(timestamp: number): TimeSeries;
 }

@@ -147,7 +147,7 @@ export interface Point {
    * The moment when this point was recorded. Inclusive.
    * If not specified, the timestamp will be decided by the backend.
    */
-  readonly timestamp: Timestamp;
+  readonly timestamp: number;
   /**
    * The actual point value.
    * 64-bit integer or 64-bit double-precision floating-point number
