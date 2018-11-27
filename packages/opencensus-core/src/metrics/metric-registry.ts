@@ -20,7 +20,7 @@ import {LabelKey, MetricDescriptorType} from './export/types';
 import {Gauge} from './gauges/gauge';
 
 /**
- * Creates and manages your application's set of metrics.
+ * Creates and manages application's set of metrics.
  */
 export class MetricRegistry {
   /**

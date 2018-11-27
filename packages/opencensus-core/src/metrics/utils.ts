@@ -16,17 +16,13 @@
 
 import {LabelValue} from './export/types';
 
-const UNSET_LABEL_VALUE: LabelValue = {
-  value: null
-};
-
 /**
- * Returns a serialized string(comma separated) from the list of label values.
+ * Returns a string(comma separated) from the list of label values.
  *
  * @param  {LabelValue[]} labelValues The list of the label values.
  * @returns {string} The hashed label values string.
  */
-export function hashLabelValues(labelValues: LabelValue[]) {
+export function hashLabelValues(labelValues: LabelValue[]): string {
   if (labelValues.length === 0) {
     return '';
   }
@@ -57,9 +53,10 @@ export function hashLabelValues(labelValues: LabelValue[]) {
  * @returns {LabelValue[]} The list of the label values.
  */
 export function initializeDefaultLabels(count: number): LabelValue[] {
-  const defaultLabels: LabelValue[] = new Array();
+  const UNSET_LABEL_VALUE: LabelValue = {value: null};
+  const defaultLabels: LabelValue[] = new Array(count);
   for (let i = 0; i < count; i++) {
-    defaultLabels.push(UNSET_LABEL_VALUE);
+    defaultLabels[i] = UNSET_LABEL_VALUE;
   }
   return defaultLabels;
 }

@@ -15,20 +15,19 @@
  */
 
 import {checkArgument, checkListElementNotNull, checkNotNull} from '../../common/validations';
-import {LabelKey, LabelValue, Metric, MetricDescriptor, MetricDescriptorType, Point, TimeSeries} from '../export/types';
+import {LabelKey, LabelValue, Metric, MetricDescriptor, MetricDescriptorType, Point, TimeSeries, Timestamp} from '../export/types';
 import * as types from '../gauges/types';
 import {hashLabelValues, initializeDefaultLabels} from '../utils';
 
-export class Gauge implements types.Meter {
+export class Gauge {
   private readonly metricDescriptor: MetricDescriptor;
   private labelKeysSize: number;
   private defaultLabelValues: LabelValue[];
   private registeredPoints: Map<string, types.Point> = new Map();
 
   constructor(
-      private name: string, private description: string, private unit: string,
-      private type: MetricDescriptorType,
-      private readonly labelKeys: LabelKey[]) {
+      name: string, description: string, unit: string,
+      type: MetricDescriptorType, readonly labelKeys: LabelKey[]) {
     this.metricDescriptor = {name, description, unit, type, labelKeys};
     this.labelKeysSize = labelKeys.length;
     this.defaultLabelValues = initializeDefaultLabels(this.labelKeysSize);
@@ -43,7 +42,7 @@ export class Gauge implements types.Meter {
    * calling this method for manual operations.
    *
    * @param {LabelValue[]} labelValues The list of the label values.
-   * @returns {Point} The value of single gauge.
+   * @returns {types.Point} The value of single gauge.
    */
   getOrCreateTimeSeries(labelValues: LabelValue[]): types.Point {
     checkListElementNotNull(
@@ -55,7 +54,7 @@ export class Gauge implements types.Meter {
    * Returns a Point for a gauge with all labels not set, or default
    * labels.
    *
-   * @returns {Point} The value of single gauge.
+   * @returns {types.Point} The value of single gauge.
    */
   getDefaultTimeSeries(): types.Point {
     return this.registerTimeSeries(this.defaultLabelValues);
@@ -81,6 +80,14 @@ export class Gauge implements types.Meter {
     this.registeredPoints.clear();
   }
 
+  /**
+   * Registers a TimeSeries and returns a Point if the specified
+   * labelValues is not already associated with this gauge, else returns an
+   * existing Point.
+   *
+   * @param {LabelValue[]} labelValues The list of the label values.
+   * @returns {types.Point} The value of single gauge.
+   */
   private registerTimeSeries(labelValues: LabelValue[]): types.Point {
     const hash = hashLabelValues(labelValues);
     if (this.registeredPoints.has(hash)) {
@@ -95,15 +102,21 @@ export class Gauge implements types.Meter {
     return point;
   }
 
+  /**
+   * Provides a Metric with one or more TimeSeries.
+   *
+   * @returns {Metric} The Metric.
+   */
   getMetric(): Metric {
-    // time at which the gauge is recorded - format: milliseconds since epoch
-    const now = Date.now();
     if (this.registeredPoints.size === 0) {
       return null;
     }
     const timeSeriesList: TimeSeries[] = new Array();
     this.registeredPoints.forEach((point: types.Point) => {
-      timeSeriesList.push(point.getTimeSeries(now));
+      // TODO(mayurkale): Decide how to handle/create Timestamp with (ns and u
+      // granularity)
+      // https://github.com/census-instrumentation/opencensus-node/pull/196
+      timeSeriesList.push(point.getTimeSeries(null));
     });
     return {descriptor: this.metricDescriptor, timeseries: timeSeriesList};
   }
@@ -131,17 +144,19 @@ export class PointEntry implements types.Point {
   /**
    * Sets the given value.
    *
-   * @param  {number} val The new value.
+   * @param {number} val The new value.
    */
   set(val: number): void {
     this.value = val;
   }
 
   /**
-   * @param {number} timestamp The time at which the gauge is recorded.
+   * Returns the TimeSeries with one or more Point.
+   *
+   * @param {Timestamp} timestamp The time at which the gauge is recorded.
    * @returns {TimeSeries} The TimeSeries.
    */
-  getTimeSeries(timestamp: number): TimeSeries {
+  getTimeSeries(timestamp: Timestamp): TimeSeries {
     const point: Point = {value: this.value, timestamp};
     return {
       labelValues: this.labelValues,

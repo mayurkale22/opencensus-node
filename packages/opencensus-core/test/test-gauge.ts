@@ -30,12 +30,6 @@ const LABEL_VALUES_EXRTA: LabelValue[] = [{value: '200'}, {value: '400'}];
 const UNSET_LABEL_VALUE: LabelValue = {
   value: null
 };
-const LABEL_VALUES_WITH_NULL: LabelValue[] = [null];
-
-function mockDateNow() {
-  // Tue, 20 Nov 2018 18:05:51 GMT
-  return 1542737151;
-}
 
 describe('GAUGE_INT64', () => {
   let instance: Gauge;
@@ -49,7 +43,6 @@ describe('GAUGE_INT64', () => {
   beforeEach(() => {
     instance = new Gauge(
         METRIC_NAME, METRIC_DESCRIPTION, UNIT, GAUGE_INT64, LABEL_KEYS);
-    Date.now = mockDateNow;
   });
 
   describe('getOrCreateTimeSeries()', () => {
@@ -61,6 +54,7 @@ describe('GAUGE_INT64', () => {
 
     it('should throw an error when the labelValues elements contains NULL',
        () => {
+         const LABEL_VALUES_WITH_NULL: LabelValue[] = [null];
          assert.throws(() => {
            instance.getOrCreateTimeSeries(LABEL_VALUES_WITH_NULL);
          }, /^Error: labelValue elements should not be a NULL$/);
@@ -82,7 +76,7 @@ describe('GAUGE_INT64', () => {
       assert.equal(metric.timeseries.length, 1);
       assert.deepStrictEqual(metric.timeseries, [{
                                labelValues: LABEL_VALUES_200,
-                               points: [{value: 10, timestamp: 1542737151}],
+                               points: [{value: 10, timestamp: null}],
                                startTimestamp: null
                              }]);
 
@@ -96,12 +90,12 @@ describe('GAUGE_INT64', () => {
       assert.deepStrictEqual(metric.timeseries, [
         {
           labelValues: LABEL_VALUES_200,
-          points: [{value: 15, timestamp: 1542737151}],
+          points: [{value: 15, timestamp: null}],
           startTimestamp: null
         },
         {
           labelValues: LABEL_VALUES_400,
-          points: [{value: -8, timestamp: 1542737151}],
+          points: [{value: -8, timestamp: null}],
           startTimestamp: null
         }
       ]);
@@ -117,7 +111,7 @@ describe('GAUGE_INT64', () => {
       assert.equal(metric.timeseries.length, 1);
       assert.deepStrictEqual(metric.timeseries, [{
                                labelValues: LABEL_VALUES_200,
-                               points: [{value: 10, timestamp: 1542737151}],
+                               points: [{value: 10, timestamp: null}],
                                startTimestamp: null
                              }]);
 
@@ -129,7 +123,7 @@ describe('GAUGE_INT64', () => {
       assert.equal(metric.timeseries.length, 1);
       assert.deepStrictEqual(metric.timeseries, [{
                                labelValues: LABEL_VALUES_200,
-                               points: [{value: 40, timestamp: 1542737151}],
+                               points: [{value: 40, timestamp: null}],
                                startTimestamp: null
                              }]);
     });
@@ -146,7 +140,7 @@ describe('GAUGE_INT64', () => {
       assert.equal(metric.timeseries.length, 1);
       assert.deepStrictEqual(metric.timeseries, [{
                                labelValues: [UNSET_LABEL_VALUE],
-                               points: [{value: 10, timestamp: 1542737151}],
+                               points: [{value: 10, timestamp: null}],
                                startTimestamp: null
                              }]);
     });
@@ -185,7 +179,7 @@ describe('GAUGE_INT64', () => {
           metric.timeseries, [{
             labelValues:
                 [UNSET_LABEL_VALUE, UNSET_LABEL_VALUE, UNSET_LABEL_VALUE],
-            points: [{value: 200, timestamp: 1542737151}],
+            points: [{value: 200, timestamp: null}],
             startTimestamp: null
           }]);
     });
@@ -200,7 +194,7 @@ describe('GAUGE_INT64', () => {
       assert.equal(metric.timeseries.length, 1);
       assert.deepStrictEqual(metric.timeseries, [{
                                labelValues: [UNSET_LABEL_VALUE],
-                               points: [{value: 300, timestamp: 1542737151}],
+                               points: [{value: 300, timestamp: null}],
                                startTimestamp: null
                              }]);
       // get default timeseries again.
@@ -212,7 +206,7 @@ describe('GAUGE_INT64', () => {
       assert.equal(metric.timeseries.length, 1);
       assert.deepStrictEqual(metric.timeseries, [{
                                labelValues: [UNSET_LABEL_VALUE],
-                               points: [{value: 700, timestamp: 1542737151}],
+                               points: [{value: 700, timestamp: null}],
                                startTimestamp: null
                              }]);
     });
@@ -279,6 +273,7 @@ describe('GAUGE_DOUBLE', () => {
 
     it('should throw an error when the labelValues elements contains NULL',
        () => {
+         const LABEL_VALUES_WITH_NULL: LabelValue[] = [null];
          assert.throws(() => {
            instance.getOrCreateTimeSeries(LABEL_VALUES_WITH_NULL);
          }, /^Error: labelValue elements should not be a NULL$/);
@@ -300,7 +295,7 @@ describe('GAUGE_DOUBLE', () => {
       assert.equal(metric.timeseries.length, 1);
       assert.deepStrictEqual(metric.timeseries, [{
                                labelValues: LABEL_VALUES_200,
-                               points: [{value: 10.34, timestamp: 1542737151}],
+                               points: [{value: 10.34, timestamp: null}],
                                startTimestamp: null
                              }]);
 
@@ -313,12 +308,12 @@ describe('GAUGE_DOUBLE', () => {
       assert.deepStrictEqual(metric.timeseries, [
         {
           labelValues: LABEL_VALUES_200,
-          points: [{value: 15.46, timestamp: 1542737151}],
+          points: [{value: 15.46, timestamp: null}],
           startTimestamp: null
         },
         {
           labelValues: LABEL_VALUES_400,
-          points: [{value: -8.3, timestamp: 1542737151}],
+          points: [{value: -8.3, timestamp: null}],
           startTimestamp: null
         }
       ]);
@@ -334,7 +329,7 @@ describe('GAUGE_DOUBLE', () => {
       assert.equal(metric.timeseries.length, 1);
       assert.deepStrictEqual(metric.timeseries, [{
                                labelValues: LABEL_VALUES_200,
-                               points: [{value: 12.1, timestamp: 1542737151}],
+                               points: [{value: 12.1, timestamp: null}],
                                startTimestamp: null
                              }]);
 
@@ -346,7 +341,7 @@ describe('GAUGE_DOUBLE', () => {
       assert.equal(metric.timeseries.length, 1);
       assert.deepStrictEqual(metric.timeseries, [{
                                labelValues: LABEL_VALUES_200,
-                               points: [{value: 42.28, timestamp: 1542737151}],
+                               points: [{value: 42.28, timestamp: null}],
                                startTimestamp: null
                              }]);
     });
@@ -363,7 +358,7 @@ describe('GAUGE_DOUBLE', () => {
       assert.equal(metric.timeseries.length, 1);
       assert.deepStrictEqual(metric.timeseries, [{
                                labelValues: [UNSET_LABEL_VALUE],
-                               points: [{value: 10.1, timestamp: 1542737151}],
+                               points: [{value: 10.1, timestamp: null}],
                                startTimestamp: null
                              }]);
     });
@@ -378,7 +373,7 @@ describe('GAUGE_DOUBLE', () => {
       assert.equal(metric.timeseries.length, 1);
       assert.deepStrictEqual(metric.timeseries, [{
                                labelValues: [UNSET_LABEL_VALUE],
-                               points: [{value: 300.1, timestamp: 1542737151}],
+                               points: [{value: 300.1, timestamp: null}],
                                startTimestamp: null
                              }]);
       // get default timeseries again.
@@ -390,7 +385,7 @@ describe('GAUGE_DOUBLE', () => {
       assert.equal(metric.timeseries.length, 1);
       assert.deepStrictEqual(metric.timeseries, [{
                                labelValues: [UNSET_LABEL_VALUE],
-                               points: [{value: 700.2, timestamp: 1542737151}],
+                               points: [{value: 700.2, timestamp: null}],
                                startTimestamp: null
                              }]);
     });
@@ -413,7 +408,7 @@ describe('GAUGE_DOUBLE', () => {
           metric.timeseries, [{
             labelValues:
                 [UNSET_LABEL_VALUE, UNSET_LABEL_VALUE, UNSET_LABEL_VALUE],
-            points: [{value: 10.1, timestamp: 1542737151}],
+            points: [{value: 10.1, timestamp: null}],
             startTimestamp: null
           }]);
     });

@@ -20,10 +20,10 @@
  *
  * @param {T} reference An object reference.
  * @param {string} errorMessage The exception message to use if the check fails.
- * @returns T An object reference.
+ * @returns {T} An object reference.
  */
 export function checkNotNull<T>(reference: T, errorMessage: string): T {
-  if (reference === null) {
+  if (!reference) {
     throw new Error(`Missing mandatory ${errorMessage} parameter`);
   }
   return reference;
@@ -43,14 +43,14 @@ export function checkArgument(expression: boolean, errorMessage: string) {
 }
 
 /**
- * Throws a Error if any of the list elements is null.
+ * Throws an Error if any of the list elements is null.
  *
  * @param {T} list The argument list to check for null.
  * @param {string} errorMessage The exception message to use if the check fails.
  */
 export function checkListElementNotNull<T>(list: T[], errorMessage: string) {
   for (const element of list) {
-    if (element === null) {
+    if (!element) {
       throw new Error(`${errorMessage} elements should not be a NULL`);
     }
   }

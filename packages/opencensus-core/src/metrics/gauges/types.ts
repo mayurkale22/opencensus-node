@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import {Metric, TimeSeries} from '../export/types';
+import {Metric, TimeSeries, Timestamp} from '../export/types';
 
 export interface Meter {
   /**
@@ -36,13 +36,15 @@ export interface Point {
   /**
    * Sets the given value.
    *
-   * @param  {number} val The new value.
+   * @param {number} val The new value.
    */
   set(val: number): void;
 
   /**
-   * @param {number} timestamp The time at which the gauge is recorded.
+   * Returns the TimeSeries with one or more Point.
+   *
+   * @param {Timestamp} timestamp The time at which the gauge is recorded.
    * @returns {TimeSeries} The TimeSeries.
    */
-  getTimeSeries(timestamp: number): TimeSeries;
+  getTimeSeries(timestamp: Timestamp): TimeSeries;
 }

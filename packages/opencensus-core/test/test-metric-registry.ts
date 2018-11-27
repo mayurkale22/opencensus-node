@@ -15,7 +15,7 @@
  */
 
 import * as assert from 'assert';
-import {LabelKey, MetricDescriptorType} from '../src/metrics/export/types';
+import {LabelKey} from '../src/metrics/export/types';
 import {MetricRegistry} from '../src/metrics/metric-registry';
 import {MeasureUnit} from '../src/stats/types';
 
