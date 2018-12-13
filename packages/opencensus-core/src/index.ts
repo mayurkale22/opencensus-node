@@ -58,3 +58,35 @@ export {logger};
 
 // version
 export * from './common/version';
+
+// METRICS
+
+// classes
+export * from './metrics/metrics';
+export * from './metrics/metric-registry';
+export * from './metrics/export/metric-producer-manager';
+export * from './metrics/gauges/derived-gauge';
+export * from './metrics/gauges/gauge';
+
+// types
+export * from './metrics/gauges/types';
+import {Metric, MetricDescriptor, TimeSeries, MetricDescriptorType, LabelKey, LabelValue, Point as TimeSeriesPoint, DistributionValue, BucketOptions, Bucket as DistributionBucket, SummaryValue, Explicit, Exemplar, Timestamp, Snapshot, ValueAtPercentile} from './metrics/export/types';
+
+export {
+  Metric,
+  MetricDescriptor,
+  TimeSeries,
+  MetricDescriptorType,
+  LabelKey,
+  LabelValue,
+  TimeSeriesPoint,
+  DistributionValue,
+  BucketOptions,
+  DistributionBucket,
+  SummaryValue,
+  Explicit,
+  Exemplar,
+  Timestamp,
+  Snapshot,
+  ValueAtPercentile
+};

@@ -17,8 +17,11 @@
 import * as defaultLogger from '../common/console-logger';
 import * as loggerTypes from '../common/types';
 import {StatsEventListener} from '../exporters/types';
+import {MetricProducer} from '../metrics/export/types';
 import {Metric} from '../metrics/export/types';
+import {Metrics} from '../metrics/metrics';
 
+import {MetricProducerForStats} from './metric-producer';
 import {AggregationType, Measure, Measurement, MeasureType, MeasureUnit, View} from './types';
 import {BaseView} from './view';
 
@@ -91,17 +94,18 @@ export class Stats {
    * @param exporter An stats exporter
    */
   registerExporter(exporter: StatsEventListener) {
-    this.statsEventListeners.push(exporter);
+    // this.statsEventListeners.push(exporter);
 
-    for (const measureName of Object.keys(this.registeredViews)) {
-      for (const view of this.registeredViews[measureName]) {
-        exporter.onRegisterView(view);
-      }
-    }
+    // for (const measureName of Object.keys(this.registeredViews)) {
+    //   for (const view of this.registeredViews[measureName]) {
+    //     exporter.onRegisterView(view);
+    //   }
+    // }
 
-    // dependency with PR#253 and once start method is implemented in all stats
-    // exporters
-    // exporter.start();
+    const metricProducer: MetricProducer = new MetricProducerForStats(this);
+    Metrics.getMetricProducerManager().add(metricProducer);
+
+    exporter.start();
   }
 
   /**

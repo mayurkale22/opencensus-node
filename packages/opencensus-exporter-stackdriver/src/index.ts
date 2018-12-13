@@ -15,5 +15,5 @@
  */
 
 export * from './stackdriver-cloudtrace';
-export * from './stackdriver-monitoring';
+export * from './stackdriver-stats';
 export * from './types';
