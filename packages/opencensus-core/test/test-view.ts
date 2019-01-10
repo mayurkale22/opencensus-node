@@ -199,6 +199,8 @@ describe('BaseView', () => {
     const realHrtimeFn = process.hrtime;
     const realNowFn = Date.now;
     const mockedTime: Timestamp = {seconds: 1450000100, nanos: 1e7};
+    const mockStartTime = 1546540757282;
+    const mockStartTimestamp: Timestamp = {seconds: 1546540757, nanos: 282e6};
     const measurementValues = [1.1, 2.3, 3.2, 4.3, 5.2];
     const buckets = [2, 4, 6];
     const tags: Tags = {testKey1: 'testValue', testKey2: 'testValue'};
@@ -227,7 +229,7 @@ describe('BaseView', () => {
         TEST_ONLY.resetHrtimeFunctionCache();
       });
 
-      const {descriptor, timeseries} = view.getMetric();
+      const {descriptor, timeseries} = view.getMetric(mockStartTime);
 
       describe(
           `Aggregation type: ${aggregationTestCase.aggregationType}`, () => {
@@ -263,8 +265,7 @@ describe('BaseView', () => {
                 assert.ok(startTimestamp);
                 assert.equal(typeof startTimestamp.nanos, 'number');
                 assert.equal(typeof startTimestamp.seconds, 'number');
-                assert.ok(startTimestamp.seconds > 0);
-                assert.ok(startTimestamp.nanos > 0);
+                assert.deepStrictEqual(startTimestamp, mockStartTimestamp);
               });
             }
 
@@ -288,7 +289,7 @@ describe('BaseView', () => {
       }
 
       it('should have point', () => {
-        const {timeseries} = view.getMetric();
+        const {timeseries} = view.getMetric(mockStartTime);
         const [{points}] = timeseries;
         assert.ok(points);
         const [point] = points;
@@ -325,7 +326,7 @@ describe('BaseView', () => {
           }
 
           it('should have points', () => {
-            const {timeseries} = view.getMetric();
+            const {timeseries} = view.getMetric(mockStartTime);
             assert.equal(timeseries.length, 2);
             const [{labelValues: labelValues1, points: points1}, {
               labelValues: labelValues2,
@@ -383,7 +384,7 @@ describe('BaseView', () => {
       }
 
       it('should have point', () => {
-        const {timeseries} = view.getMetric();
+        const {timeseries} = view.getMetric(mockStartTime);
         const [{points}] = timeseries;
         assert.ok(points);
         const [point] = points;
@@ -410,7 +411,7 @@ describe('BaseView', () => {
       }
 
       it('should have point', () => {
-        const {timeseries} = view.getMetric();
+        const {timeseries} = view.getMetric(mockStartTime);
         const [{points}] = timeseries;
         assert.ok(points);
         const [point] = points;
@@ -435,7 +436,7 @@ describe('BaseView', () => {
       }
 
       it('should have point', () => {
-        const {timeseries} = view.getMetric();
+        const {timeseries} = view.getMetric(mockStartTime);
         const [{points}] = timeseries;
         assert.ok(points);
         const [point] = points;

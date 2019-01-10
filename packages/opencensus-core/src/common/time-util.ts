@@ -16,8 +16,8 @@
 
 import {Timestamp} from '../metrics/export/types';
 
-const MILLIS_PER_SECOND = 1e3;
-const NANOS_PER_MILLI = 1e3 * 1e3;
+export const MILLIS_PER_SECOND = 1e3;
+export const NANOS_PER_MILLI = 1e3 * 1e3;
 const NANOS_PER_SECOND = 1e3 * 1e3 * 1e3;
 
 let hrtime = process.hrtime;
@@ -57,6 +57,20 @@ export function getTimestampWithProcessHRTime(): Timestamp {
     return {seconds: seconds + 1, nanos: nanos % NANOS_PER_SECOND};
   }
   return {seconds, nanos};
+}
+
+/**
+ * Creates a new timestamp from the given milliseconds.
+ *
+ * @param {number} epochMilli the timestamp represented in milliseconds since
+ *  epoch.
+ * @returns {Timestamp} new timestamp with specified fields.
+ */
+export function timestampFromMillis(epochMilli: number): Timestamp {
+  return {
+    seconds: Math.floor(epochMilli / MILLIS_PER_SECOND),
+    nanos: (epochMilli % MILLIS_PER_SECOND) * NANOS_PER_MILLI
+  };
 }
 
 setHrtimeReference();

@@ -36,7 +36,7 @@ const stats = new Stats();
 // See https://developers.google.com/identity/protocols/application-default-credentials
 // for more details.
 // Add your project id to the Stackdriver options
-const exporter = new StackdriverStatsExporter({ projectId: "your-project-id" });
+const exporter = new StackdriverStatsExporter({ projectId: "opencensus-java-stats-demo-app" });
 
 // Pass the created exporter to Stats
 stats.registerExporter(exporter);
@@ -66,7 +66,7 @@ const tagKey = "method";
 
 // Register the view.
 const latencyView = stats.createView(
-  "demo/latency",
+  "demo1001/latency",
   mLatencyMs,
   AggregationType.DISTRIBUTION,
   [tagKey],
@@ -78,7 +78,7 @@ const latencyView = stats.createView(
 
 // Register the view.
 const lineCountView = stats.createView(
-  "demo/lines_in",
+  "demo1001/lines_in",
   mLineLengths,
   AggregationType.COUNT,
   [tagKey],
@@ -87,7 +87,7 @@ const lineCountView = stats.createView(
 
 // Register the view.
 const lineLengthView = stats.createView(
-  "demo/line_lengths",
+  "demo1001/line_lengths",
   mLineLengths,
   AggregationType.DISTRIBUTION,
   [tagKey],
