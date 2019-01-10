@@ -15,9 +15,12 @@
  */
 
 import {AggregationType, DistributionData, ExporterConfig, logger, Logger, Measurement, MeasureUnit, StatsEventListener, Tags, View} from '@opencensus/core';
+import {DistributionValue, Metric as OCMetric, MetricProducerManager, Metrics} from '@opencensus/core';
 import * as express from 'express';
 import * as http from 'http';
 import {Counter, Gauge, Histogram, Metric, Registry} from 'prom-client';
+
+import {createLabelValues, createMetric, createMetricName} from './prometheus-stats-utils';
 
 export interface PrometheusExporterOptions extends ExporterConfig {
   /** App prefix for metrics, if needed - default opencensus */
@@ -42,7 +45,7 @@ export class PrometheusStatsExporter implements StatsEventListener {
     contentType: 'text/plain; text/plain; version=0.0.4; charset=utf-8',
     prefix: ''
   };
-
+  private timer: NodeJS.Timer;
   private logger: Logger;
   private prefix: string;
   private port: number;
@@ -78,140 +81,67 @@ export class PrometheusStatsExporter implements StatsEventListener {
    * @param views
    * @param measurement
    */
-  onRecord(views: View[], measurement: Measurement) {
-    for (const view of views) {
-      this.updateMetric(view, measurement);
-    }
-  }
+  onRecord(views: View[], measurement: Measurement) {}
 
   /**
    * Starts the Prometheus exporter that polls Metric from Metrics library and
    * send batched data to backend.
    */
   start(): void {
-    // TODO(mayurkale): add setInterval here to poll Metric, transform and send
-    // // it to backend (dependency with PR#253).
-  }
-
-  /**
-   * Register or get a metric in Prometheus
-   * @param view View will be used to register the metric
-   * @param tags Optional, used only for histogram metric
-   */
-  private registerMetric(view: View, tags?: Tags): Metric {
-    const metricName = this.getPrometheusMetricName(view);
-    /** Get metric if already registered */
-    let metric = this.registry.getSingleMetric(metricName);
-    // Return metric if already registered
-    if (metric) {
-      return metric;
-    }
-
-    const labels = view.getColumns();
-
-    // Create a new metric if there is no one
-    const metricObj = {
-      name: metricName,
-      help: view.description,
-      labelNames: labels
-    };
-
-    // Creating the metric based on aggregation type
-    switch (view.aggregation) {
-      case AggregationType.COUNT:
-        metric = new Counter(metricObj);
-        break;
-      case AggregationType.SUM:
-      case AggregationType.LAST_VALUE:
-        metric = new Gauge(metricObj);
-        break;
-      case AggregationType.DISTRIBUTION:
-        this.validateDisallowedLeLabelForHistogram(labels);
-        const distribution = {
-          name: metricName,
-          help: view.description,
-          labelNames: labels,
-          buckets: this.getBoundaries(view, tags)
-        };
-        metric = new Histogram(distribution);
-        break;
-      default:
-        this.logger.error('Aggregation %s is not supported', view.aggregation);
-        return null;
-    }
-
-    this.registry.registerMetric(metric);
-    return metric;
-  }
-
-  /**
-   * Update the metric from a measurement value
-   * @param view View will be used to update the metric
-   * @param measurement Measurement with the new value to update the metric
-   */
-  private updateMetric(view: View, measurement: Measurement) {
-    const metric = this.registerMetric(view, measurement.tags);
-    // Updating the metric based on metric instance type and aggregation type
-    if (metric instanceof Counter) {
-      metric.inc(measurement.tags);
-    } else if (
-        view.aggregation === AggregationType.SUM && metric instanceof Gauge) {
-      metric.inc(measurement.tags, measurement.value);
-    } else if (
-        view.aggregation === AggregationType.LAST_VALUE &&
-        metric instanceof Gauge) {
-      metric.set(measurement.tags, measurement.value);
-    } else if (metric instanceof Histogram) {
-      metric.observe(measurement.tags, measurement.value);
-    } else {
-      this.logger.error('Metric not supported');
-    }
-  }
-
-  /**
-   * Build a metric name from view name
-   * @param view View used to build the metric name
-   */
-  private getPrometheusMetricName(view: View): string {
-    let metricName;
-    if (this.prefix) {
-      metricName = `${this.prefix}_${view.name}`;
-    } else {
-      metricName = view.name;
-    }
-    return this.sanitizePrometheusMetricName(metricName);
-  }
-
-  /**
-   * Sanitize metric name
-   * @param name string The name of the metric.
-   */
-  private sanitizePrometheusMetricName(name: string): string {
-    // replace all characters other than [A-Za-z0-9_].
-    return name.replace(/\W/g, '_');
-  }
-
-  /**
-   * Throws an error labels contain "le" label name in histogram label names.
-   */
-  private validateDisallowedLeLabelForHistogram(labels: string[]): void {
-    labels.forEach(label => {
-      if (label === PrometheusStatsExporter.RESERVED_HISTOGRAM_LABEL) {
-        throw new Error(`${
-            PrometheusStatsExporter
-                .RESERVED_HISTOGRAM_LABEL} is a reserved label keyword`);
+    this.timer = setInterval(async () => {
+      try {
+        console.log('Running prometheus exporter');
+        await this.export();
+      } catch (err) {
+        throw Error(err);
       }
-    });
+    }, 30000);
   }
 
-  /**
-   * Get the boundaries from buckets
-   * @param view View used to get the DistributionData
-   * @param tags Tags used to get the DistributionData
-   */
-  private getBoundaries(view: View, tags: Tags): number[] {
-    const data = view.getSnapshot(tags) as DistributionData;
-    return data.buckets;
+  async export() {
+    const metricProducerManager: MetricProducerManager =
+        Metrics.getMetricProducerManager();
+
+    for (const metricProducer of metricProducerManager.getAllMetricProducer()) {
+      for (const metric of metricProducer.getMetrics()) {
+        console.log(`metric : ${JSON.stringify(metric)}`);
+        const descriptor = metric.descriptor;
+        const metricName = createMetricName(descriptor.name, this.prefix);
+        /** Get metric if already registered */
+        let registeredMetric = this.registry.getSingleMetric(metricName);
+        console.log(`${metricName} Already there : ${registeredMetric}`);
+        for (const timeseries of metric.timeseries) {
+          console.log(`timeseries : ${JSON.stringify(timeseries)}`);
+          if (!registeredMetric) {
+            const newMetric = createMetric(descriptor, this.prefix);
+            this.registry.registerMetric(newMetric);
+            registeredMetric = newMetric;
+          }
+
+          const labelValues =
+              createLabelValues(descriptor.labelKeys, timeseries.labelValues);
+          // Updating the metric based on metric instance type
+          if (registeredMetric instanceof Counter) {
+            for (const point of timeseries.points) {
+              registeredMetric.inc(labelValues, point.value as number);
+            }
+          } else if (registeredMetric instanceof Gauge) {
+            for (const point of timeseries.points) {
+              registeredMetric.set(labelValues, point.value as number);
+            }
+          } else if (registeredMetric instanceof Histogram) {
+            for (const point of timeseries.points) {
+              // registeredMetric.observe(labelValues, (point.value as
+              // DistributionValue).);
+            }
+          } else {
+            this.logger.error('Metric not supported');
+          }
+        }
+      }
+    }
+
+    console.log('finished');
   }
 
   /**
