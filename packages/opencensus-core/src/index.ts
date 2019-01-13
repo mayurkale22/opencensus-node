@@ -90,3 +90,9 @@ export * from './metrics/metric-registry';
 // GAUGES CLASSES
 export * from './metrics/gauges/derived-gauge';
 export * from './metrics/gauges/gauge';
+
+// Tracing Instance
+import {BaseTracing} from './trace/tracing';
+import {Tracing} from './trace/types';
+const tracing: Tracing = BaseTracing.instance;
+export {tracing};

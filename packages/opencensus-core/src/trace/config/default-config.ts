@@ -13,12 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-"use strict";
 
-exports.DEFAULT_INSTRUMENTATION_MODULES = [
-    ,'http'
-    ,'https'
-    ,'http2'
-    ,'grpc'
-    ,'mongodb'
-];
+import {Constants} from '../constants';
+
+/**
+ * Defines a default configuration. For fields with primitive values,
+ * or non-primitive but non-map value (logger, exporter), any user-provided
+ * value will override the corresponding default value. For fields with
+ * non-primitive values, but map values (plugins), the user-provided value
+ * will be used to extend/overwrite the default value.
+ */
+export const defaultConfig = {
+  logLevel: 1,
+  maximumLabelValueSize: 150,
+  plugins: {},
+  bufferSize: Constants.DEFAULT_BUFFER_SIZE,
+  bufferTimeout: Constants.DEFAULT_BUFFER_TIMEOUT,
+  samplingRate: 1
+};

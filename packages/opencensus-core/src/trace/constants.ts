@@ -13,12 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-"use strict";
 
-exports.DEFAULT_INSTRUMENTATION_MODULES = [
-    ,'http'
-    ,'https'
-    ,'http2'
-    ,'grpc'
-    ,'mongodb'
-];
+import {DEFAULT_INSTRUMENTATION_MODULES} from '@opencensus/instrumentation-all';
+
+
+/** General purpose constants. */
+const constants = {
+  /** Default maximum size of a buffer. */
+  DEFAULT_BUFFER_SIZE: 100,
+  /** Default max timeout for a buffer before being flushed */
+  DEFAULT_BUFFER_TIMEOUT: 20000,
+  /** Default list of target modules to be instrumented */
+  DEFAULT_INSTRUMENTATION_MODULES,
+  /** OpenCensus Scope */
+  OPENCENSUS_SCOPE: '@opencensus',
+  /** Default prefix for instrumentation modules */
+  DEFAULT_PLUGIN_PACKAGE_NAME_PREFIX: 'instrumentation'
+};
+
+export {constants as Constants};

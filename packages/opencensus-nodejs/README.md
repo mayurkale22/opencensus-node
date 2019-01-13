@@ -1,6 +1,9 @@
 # OpenCensus for Node.js
 [![Gitter chat][gitter-image]][gitter-url]
 
+# THIS PACKAGE HAS BEEN DEPRECATED
+This package has been deprecated since version-0.0.8. Please use [opencensus-core](https://github.com/census-instrumentation/opencensus-node/tree/master/packages/opencensus-core) instead.
+
 OpenCensus Node.js is an implementation of OpenCensus, a toolkit for collecting application performance and behavior monitoring data. Right now OpenCensus for Node.js supports custom tracing and automatic tracing for HTTP and HTTPS.
 
 The library is in alpha stage and the API is subject to change.
@@ -35,7 +38,7 @@ tracing.start();
 
 ### Manually Instrument an Application
 
-In addition to automatic tracing, it is possible to manually create your own root and child spans. 
+In addition to automatic tracing, it is possible to manually create your own root and child spans.
 
 ```typescript
 const rootSpanOptions = { name: 'your root span' };
@@ -100,4 +103,3 @@ If no exporter is registered in the tracing instance, as default, a console log 
 
 [gitter-image]: https://badges.gitter.im/census-instrumentation/lobby.svg
 [gitter-url]: https://gitter.im/census-instrumentation/lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge
-
