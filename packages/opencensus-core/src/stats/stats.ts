@@ -67,6 +67,28 @@ export class Stats {
   }
 
   /**
+   * Unregister the given views. Data will not longer be exported for these
+   * views after Unregister returns.
+   * It is not necessary to unregister from views you expect to collect for the
+   * duration of your program execution.
+   * @param view The view to be registered
+   */
+  unregisterView(view: View) {
+    if (view && view.measure) {
+      if (this.registeredViews[view.measure.name]) {
+        const filteredViews =
+            this.registeredViews[view.measure.name].filter((currentView) => {
+              return currentView.name !== view.name &&
+                  currentView.description !== view.description &&
+                  currentView.aggregation !== view.aggregation;
+            });
+
+        this.registeredViews[view.measure.name] = filteredViews;
+      }
+    }
+  }
+
+  /**
    * Creates and registers a view.
    * @param name The view name
    * @param measure The view measure
