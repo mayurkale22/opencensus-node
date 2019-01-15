@@ -17,7 +17,6 @@
 import {BucketOptions, DistributionBucket, DistributionValue, LabelKey, LabelValue, Metric as OCMetric, MetricDescriptor as OCMetricDescriptor, MetricDescriptor, MetricDescriptorType, TimeSeriesPoint, Timestamp} from '@opencensus/core';
 import {Counter, Gauge, Histogram, Metric, Registry} from 'prom-client';
 
-
 // Histogram cannot have a label named 'le'
 const RESERVED_HISTOGRAM_LABEL = 'le';
 
@@ -87,7 +86,7 @@ export function createLabelValues(
  * Converts the list of label keys to a list of string label names. Also
  * sanitizes the label keys.
  */
-function createLabelNames(labelKeys: LabelKey[]): string[] {
+export function createLabelNames(labelKeys: LabelKey[]): string[] {
   return labelKeys.map(labelKey => {
     return sanitizePrometheusMetricName(labelKey.key);
   });
@@ -112,6 +111,10 @@ function validateDisallowedLeLabelForHistogram(labels: string[]) {
           'Prometheus Histogram cannot have a label named \'le\' because it is a reserved label for bucket boundaries. Please remove this key from your view.');
     }
   });
+}
+
+export function millisFromTimestamp(timestamp: Timestamp): number {
+  return timestamp.seconds * 1e3 + Math.floor(timestamp.nanos / 1e6);
 }
 
 export const TEST_ONLY = {

@@ -14,14 +14,23 @@
  * limitations under the License.
  */
 
-import {AggregationType, DistributionData, ExporterConfig, logger, Logger, Measurement, MeasureUnit, StatsEventListener, Tags, View} from '@opencensus/core';
-import {DistributionValue, Metric as OCMetric, MetricProducerManager, Metrics} from '@opencensus/core';
+import {ExporterConfig, LabelKey, logger, Logger, Measurement, StatsEventListener, TimeSeries, Timestamp, View} from '@opencensus/core';
+import {DistributionValue, MetricDescriptor, MetricDescriptorType, MetricProducerManager, Metrics} from '@opencensus/core';
 import * as express from 'express';
 import * as http from 'http';
-import {Counter, Gauge, Histogram, Metric, Registry} from 'prom-client';
+import {Counter, Gauge, Histogram, labelValues, Metric, Registry} from 'prom-client';
 
-import {createLabelValues, createMetric, createMetricName} from './prometheus-stats-utils';
+import {createLabelNames, createLabelValues, createMetric, createMetricName, millisFromTimestamp} from './prometheus-stats-utils';
 
+const HISTOGRAM_SUFFIX_SUM = '_sum';
+const HISTOGRAM_SUFFIX_COUNT = '_count';
+const HISTOGRAM_SUFFIX_BUCKET = '_bucket';
+const LABEL_NAME_BUCKET_BOUND = 'le';
+const INF_LABEL = '+Inf';
+
+/**
+ * Options for Prometheus configuration
+ */
 export interface PrometheusExporterOptions extends ExporterConfig {
   /** App prefix for metrics, if needed - default opencensus */
   prefix?: string;
@@ -54,9 +63,6 @@ export class PrometheusStatsExporter implements StatsEventListener {
   // Registry instance from Prometheus to keep the metrics
   private registry = new Registry();
 
-  // Histogram cannot have a label named 'le'
-  private static readonly RESERVED_HISTOGRAM_LABEL = 'le';
-
   constructor(options: PrometheusExporterOptions) {
     this.logger = options.logger || logger.logger();
     this.port = options.port || PrometheusStatsExporter.DEFAULT_OPTIONS.port;
@@ -70,32 +76,25 @@ export class PrometheusStatsExporter implements StatsEventListener {
   }
 
   /**
-   * Not used because registering metrics requires information that is
-   * present in Measurement objects
-   * @param view
-   */
-  onRegisterView(view: View) {}
-
-  /**
-   * Method called every new stats' record
-   * @param views
-   * @param measurement
-   */
-  onRecord(views: View[], measurement: Measurement) {}
-
-  /**
    * Starts the Prometheus exporter that polls Metric from Metrics library and
    * send batched data to backend.
    */
   start(): void {
     this.timer = setInterval(async () => {
       try {
-        console.log('Running prometheus exporter');
         await this.export();
       } catch (err) {
         throw Error(err);
       }
-    }, 30000);
+    }, 5000);
+  }
+
+  /**
+   * Clear the interval timer to stop uploading metrics. It should be called
+   * whenever the exporter is not needed anymore.
+   */
+  close() {
+    clearInterval(this.timer);
   }
 
   async export() {
@@ -104,44 +103,109 @@ export class PrometheusStatsExporter implements StatsEventListener {
 
     for (const metricProducer of metricProducerManager.getAllMetricProducer()) {
       for (const metric of metricProducer.getMetrics()) {
-        console.log(`metric : ${JSON.stringify(metric)}`);
         const descriptor = metric.descriptor;
-        const metricName = createMetricName(descriptor.name, this.prefix);
-        /** Get metric if already registered */
-        let registeredMetric = this.registry.getSingleMetric(metricName);
-        console.log(`${metricName} Already there : ${registeredMetric}`);
+        const labelNames: string[] = createLabelNames(descriptor.labelKeys);
         for (const timeseries of metric.timeseries) {
-          console.log(`timeseries : ${JSON.stringify(timeseries)}`);
-          if (!registeredMetric) {
-            const newMetric = createMetric(descriptor, this.prefix);
-            this.registry.registerMetric(newMetric);
-            registeredMetric = newMetric;
-          }
-
           const labelValues =
               createLabelValues(descriptor.labelKeys, timeseries.labelValues);
-          // Updating the metric based on metric instance type
-          if (registeredMetric instanceof Counter) {
-            for (const point of timeseries.points) {
-              registeredMetric.inc(labelValues, point.value as number);
+
+          for (const point of timeseries.points) {
+            switch (descriptor.type) {
+              case MetricDescriptorType.CUMULATIVE_INT64:
+              case MetricDescriptorType.CUMULATIVE_DOUBLE:
+                this.collectCounterMetricFamily(
+                    descriptor, point.value as number, labelNames, labelValues,
+                    point.timestamp);
+                break;
+              case MetricDescriptorType.GAUGE_INT64:
+              case MetricDescriptorType.GAUGE_DOUBLE:
+                this.collectGaugeMetricFamily(
+                    descriptor, point.value as number, labelNames, labelValues,
+                    point.timestamp);
+                break;
+              case MetricDescriptorType.CUMULATIVE_DISTRIBUTION:
+              case MetricDescriptorType.GAUGE_DISTRIBUTION:
+                const distribution = point.value as DistributionValue;
+
+                this.collectCounterMetricFamily(
+                    descriptor, distribution.count, labelNames, labelValues,
+                    point.timestamp, HISTOGRAM_SUFFIX_COUNT);
+                this.collectCounterMetricFamily(
+                    descriptor, distribution.sum, labelNames, labelValues,
+                    point.timestamp, HISTOGRAM_SUFFIX_SUM);
+                let cumulativeCount = 0;
+                const labelValuesWithLe = Object.assign({}, labelValues);
+                const labelNamesWithLe = Object.assign([], labelNames);
+                labelNamesWithLe.push(LABEL_NAME_BUCKET_BOUND);
+                const bounds = distribution.bucketOptions.explicit.bounds;
+                for (let i = 0; i < distribution.buckets.length; i++) {
+                  // The label value of "le" is the upper inclusive bound.
+                  // For the last bucket, it should be "+Inf".
+                  const bucketBoundary =
+                      i < bounds.length ? bounds[i].toString() : INF_LABEL;
+
+                  labelValuesWithLe[LABEL_NAME_BUCKET_BOUND] = bucketBoundary;
+                  cumulativeCount += distribution.buckets[i].count;
+                  this.collectCounterMetricFamily(
+                      descriptor, cumulativeCount, labelNamesWithLe,
+                      labelValuesWithLe, point.timestamp,
+                      HISTOGRAM_SUFFIX_BUCKET);
+                }
+                break;
+              default:
+                throw Error(
+                    `Aggregation %s is not supported : ${descriptor.type}`);
             }
-          } else if (registeredMetric instanceof Gauge) {
-            for (const point of timeseries.points) {
-              registeredMetric.set(labelValues, point.value as number);
-            }
-          } else if (registeredMetric instanceof Histogram) {
-            for (const point of timeseries.points) {
-              // registeredMetric.observe(labelValues, (point.value as
-              // DistributionValue).);
-            }
-          } else {
-            this.logger.error('Metric not supported');
           }
         }
       }
     }
+  }
 
-    console.log('finished');
+  private collectCounterMetricFamily(
+      metricDescriptor: MetricDescriptor, value: number, labelNames: string[],
+      labelValues: labelValues, timstamp: Timestamp, metricNameSuffix = '') {
+    let counterMetric: Counter;
+    const labelValuesCopy = Object.assign({}, labelValues);
+    const fullMetricName = createMetricName(
+        `${metricDescriptor.name}${metricNameSuffix}`, this.prefix);
+    /** Get metric if already registered */
+    const registeredMetric = this.registry.getSingleMetric(fullMetricName);
+    if (registeredMetric instanceof Counter) {
+      counterMetric = registeredMetric;
+    } else {
+      const metric = new Counter({
+        name: fullMetricName,
+        help: metricDescriptor.description,
+        labelNames
+      });
+      this.registry.registerMetric(metric);
+      counterMetric = metric;
+    }
+
+    counterMetric.inc(labelValuesCopy, value, millisFromTimestamp(timstamp));
+  }
+
+  private collectGaugeMetricFamily(
+      metricDescriptor: MetricDescriptor, value: number, labelNames: string[],
+      labelValues: labelValues, timstamp: Timestamp, metricNameSuffix = '') {
+    const fullMetricName = createMetricName(
+        `${metricDescriptor.name}${metricNameSuffix}`, this.prefix);
+    let gaugeMetric: Gauge;
+    /** Get metric if already registered */
+    const registeredMetric = this.registry.getSingleMetric(fullMetricName);
+    if (registeredMetric instanceof Gauge) {
+      gaugeMetric = registeredMetric;
+    } else {
+      const metric = new Gauge({
+        name: fullMetricName,
+        help: metricDescriptor.description,
+        labelNames
+      });
+      this.registry.registerMetric(metric);
+      gaugeMetric = metric;
+    }
+    gaugeMetric.set(labelValues, value, millisFromTimestamp(timstamp));
   }
 
   /**
@@ -174,4 +238,20 @@ export class PrometheusStatsExporter implements StatsEventListener {
       this.logger.debug('Prometheus Exporter shutdown');
     }
   }
+
+  // TODO(mayurkale): Deprecate onRegisterView and onRecord apis after
+  // https://github.com/census-instrumentation/opencensus-node/issues/257
+  /**
+   * Not used because registering metrics requires information that is
+   * present in Measurement objects
+   * @param view
+   */
+  onRegisterView(view: View) {}
+
+  /**
+   * Method called every new stats' record
+   * @param views
+   * @param measurement
+   */
+  onRecord(views: View[], measurement: Measurement) {}
 }
