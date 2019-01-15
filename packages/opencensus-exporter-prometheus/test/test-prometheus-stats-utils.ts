@@ -15,7 +15,7 @@
  */
 import * as assert from 'assert';
 
-import {millisFromTimestamp, TEST_ONLY} from '../src/prometheus-stats-utils';
+import {createLabelNames, createMetricName, millisFromTimestamp, validateDisallowedLeLabelForHistogram} from '../src/prometheus-stats-utils';
 
 describe('createLabelNames()', () => {
   it('should return a label names', () => {
@@ -23,7 +23,7 @@ describe('createLabelNames()', () => {
       {'key': 'key1', 'description': 'desc'},
       {'key': 'key2', 'description': 'desc'}
     ];
-    const labelNames = TEST_ONLY.createLabelNames(labelKeys);
+    const labelNames = createLabelNames(labelKeys);
     assert.equal(labelNames.length, 2);
     assert.deepStrictEqual(labelNames, ['key1', 'key2']);
   });
@@ -32,7 +32,7 @@ describe('createLabelNames()', () => {
       {'key': 'key1/name', 'description': 'desc'},
       {'key': 'key2-name', 'description': 'desc'}
     ];
-    const labelNames = TEST_ONLY.createLabelNames(labelKeys);
+    const labelNames = createLabelNames(labelKeys);
     assert.equal(labelNames.length, 2);
     assert.deepStrictEqual(labelNames, ['key1_name', 'key2_name']);
   });
@@ -41,22 +41,21 @@ describe('createMetricName()', () => {
   const name = 'my_metric';
   const metricPrefix = 'opencensus';
   it('should return a metric name', () => {
-    assert.equal(TEST_ONLY.createMetricName(name, null), name);
+    assert.equal(createMetricName(name, null), name);
   });
   it('should return a metric name with prefix', () => {
     assert.equal(
-        TEST_ONLY.createMetricName(name, metricPrefix),
-        `${metricPrefix}_${name}`);
+        createMetricName(name, metricPrefix), `${metricPrefix}_${name}`);
   });
   it('should return a metric name after sanitize', () => {
     assert.equal(
-        TEST_ONLY.createMetricName('demo/latency', metricPrefix),
+        createMetricName('demo/latency', metricPrefix),
         `${metricPrefix}_demo_latency`);
   });
   describe('validateDisallowedLeLabelForHistogram()', () => {
     it('should throw an error when there is an \'le\' in label names', () => {
       assert.throws(() => {
-        TEST_ONLY.validateDisallowedLeLabelForHistogram(['key1', 'le']);
+        validateDisallowedLeLabelForHistogram(['key1', 'le']);
       }, /^Error: Prometheus Histogram cannot have a label named 'le' because it is a reserved label for bucket boundaries. Please remove this key from your view.$/);
     });
   });

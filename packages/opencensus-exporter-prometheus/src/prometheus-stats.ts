@@ -14,13 +14,12 @@
  * limitations under the License.
  */
 
-import {ExporterConfig, LabelKey, logger, Logger, Measurement, StatsEventListener, TimeSeries, Timestamp, View} from '@opencensus/core';
-import {DistributionValue, MetricDescriptor, MetricDescriptorType, MetricProducerManager, Metrics} from '@opencensus/core';
+import {ExporterConfig, logger, Logger, Measurement, Metric as OcMetric, StatsEventListener, Timestamp, View} from '@opencensus/core';
+import {DistributionValue, MetricDescriptor, MetricProducerManager, Metrics} from '@opencensus/core';
 import * as express from 'express';
 import * as http from 'http';
-import {Counter, Gauge, Histogram, labelValues, Metric, Registry} from 'prom-client';
-
-import {createLabelNames, createLabelValues, createMetric, createMetricName, millisFromTimestamp} from './prometheus-stats-utils';
+import {Counter, Gauge, labelValues, Registry} from 'prom-client';
+import {createLabelNames, createLabelValues, createMetricName, isCumulativeMetricType, isDistributionMetricType, isGaugeMetricType, millisFromTimestamp, validateDisallowedLeLabelForHistogram} from './prometheus-stats-utils';
 
 const HISTOGRAM_SUFFIX_SUM = '_sum';
 const HISTOGRAM_SUFFIX_COUNT = '_count';
@@ -103,66 +102,65 @@ export class PrometheusStatsExporter implements StatsEventListener {
 
     for (const metricProducer of metricProducerManager.getAllMetricProducer()) {
       for (const metric of metricProducer.getMetrics()) {
-        const descriptor = metric.descriptor;
-        const labelNames: string[] = createLabelNames(descriptor.labelKeys);
-        for (const timeseries of metric.timeseries) {
-          const labelValues =
-              createLabelValues(descriptor.labelKeys, timeseries.labelValues);
+        this.registerMetric(metric);
+      }
+    }
+  }
 
-          for (const point of timeseries.points) {
-            switch (descriptor.type) {
-              case MetricDescriptorType.CUMULATIVE_INT64:
-              case MetricDescriptorType.CUMULATIVE_DOUBLE:
-                this.collectCounterMetricFamily(
-                    descriptor, point.value as number, labelNames, labelValues,
-                    point.timestamp);
-                break;
-              case MetricDescriptorType.GAUGE_INT64:
-              case MetricDescriptorType.GAUGE_DOUBLE:
-                this.collectGaugeMetricFamily(
-                    descriptor, point.value as number, labelNames, labelValues,
-                    point.timestamp);
-                break;
-              case MetricDescriptorType.CUMULATIVE_DISTRIBUTION:
-              case MetricDescriptorType.GAUGE_DISTRIBUTION:
-                const distribution = point.value as DistributionValue;
+  registerMetric(metric: OcMetric) {
+    const metricDescriptor = metric.descriptor;
+    const labelNames: string[] = createLabelNames(metricDescriptor.labelKeys);
+    for (const timeseries of metric.timeseries) {
+      const labelValues =
+          createLabelValues(metricDescriptor.labelKeys, timeseries.labelValues);
 
-                this.collectCounterMetricFamily(
-                    descriptor, distribution.count, labelNames, labelValues,
-                    point.timestamp, HISTOGRAM_SUFFIX_COUNT);
-                this.collectCounterMetricFamily(
-                    descriptor, distribution.sum, labelNames, labelValues,
-                    point.timestamp, HISTOGRAM_SUFFIX_SUM);
-                let cumulativeCount = 0;
-                const labelValuesWithLe = Object.assign({}, labelValues);
-                const labelNamesWithLe = Object.assign([], labelNames);
-                labelNamesWithLe.push(LABEL_NAME_BUCKET_BOUND);
-                const bounds = distribution.bucketOptions.explicit.bounds;
-                for (let i = 0; i < distribution.buckets.length; i++) {
-                  // The label value of "le" is the upper inclusive bound.
-                  // For the last bucket, it should be "+Inf".
-                  const bucketBoundary =
-                      i < bounds.length ? bounds[i].toString() : INF_LABEL;
+      for (const point of timeseries.points) {
+        const type = metricDescriptor.type;
+        if (isCumulativeMetricType(type)) {
+          this.updateCounterMetric(
+              metricDescriptor, point.value as number, labelNames, labelValues,
+              point.timestamp);
+        } else if (isGaugeMetricType(type)) {
+          this.updateGaugeMetric(
+              metricDescriptor, point.value as number, labelNames, labelValues,
+              point.timestamp);
+        } else if (isDistributionMetricType(type)) {
+          validateDisallowedLeLabelForHistogram(labelNames);
+          const distribution = point.value as DistributionValue;
 
-                  labelValuesWithLe[LABEL_NAME_BUCKET_BOUND] = bucketBoundary;
-                  cumulativeCount += distribution.buckets[i].count;
-                  this.collectCounterMetricFamily(
-                      descriptor, cumulativeCount, labelNamesWithLe,
-                      labelValuesWithLe, point.timestamp,
-                      HISTOGRAM_SUFFIX_BUCKET);
-                }
-                break;
-              default:
-                throw Error(
-                    `Aggregation %s is not supported : ${descriptor.type}`);
-            }
+          this.updateCounterMetric(
+              metricDescriptor, distribution.count, labelNames, labelValues,
+              point.timestamp, HISTOGRAM_SUFFIX_COUNT);
+          this.updateCounterMetric(
+              metricDescriptor, distribution.sum, labelNames, labelValues,
+              point.timestamp, HISTOGRAM_SUFFIX_SUM);
+
+          let cumulativeCount = 0;
+          const labelNamesWithLe = Object.assign([], labelNames);
+          const labelValuesWithLe = Object.assign({}, labelValues);
+
+          labelNamesWithLe.push(LABEL_NAME_BUCKET_BOUND);
+          const bounds = distribution.bucketOptions.explicit.bounds;
+          for (let i = 0; i < distribution.buckets.length; i++) {
+            // The label value of "le" is the upper inclusive bound.
+            // For the last bucket, it should be "+Inf".
+            const bucketBoundary =
+                i < bounds.length ? bounds[i].toString() : INF_LABEL;
+
+            labelValuesWithLe[LABEL_NAME_BUCKET_BOUND] = bucketBoundary;
+            cumulativeCount += distribution.buckets[i].count;
+            this.updateCounterMetric(
+                metricDescriptor, cumulativeCount, labelNamesWithLe,
+                labelValuesWithLe, point.timestamp, HISTOGRAM_SUFFIX_BUCKET);
           }
+        } else {
+          throw Error(`Aggregation %s is not supported : ${type}`);
         }
       }
     }
   }
 
-  private collectCounterMetricFamily(
+  private updateCounterMetric(
       metricDescriptor: MetricDescriptor, value: number, labelNames: string[],
       labelValues: labelValues, timstamp: Timestamp, metricNameSuffix = '') {
     let counterMetric: Counter;
@@ -182,16 +180,16 @@ export class PrometheusStatsExporter implements StatsEventListener {
       this.registry.registerMetric(metric);
       counterMetric = metric;
     }
-
     counterMetric.inc(labelValuesCopy, value, millisFromTimestamp(timstamp));
   }
 
-  private collectGaugeMetricFamily(
+  private updateGaugeMetric(
       metricDescriptor: MetricDescriptor, value: number, labelNames: string[],
       labelValues: labelValues, timstamp: Timestamp, metricNameSuffix = '') {
     const fullMetricName = createMetricName(
         `${metricDescriptor.name}${metricNameSuffix}`, this.prefix);
     let gaugeMetric: Gauge;
+    const labelValuesCopy = Object.assign({}, labelValues);
     /** Get metric if already registered */
     const registeredMetric = this.registry.getSingleMetric(fullMetricName);
     if (registeredMetric instanceof Gauge) {
@@ -205,7 +203,7 @@ export class PrometheusStatsExporter implements StatsEventListener {
       this.registry.registerMetric(metric);
       gaugeMetric = metric;
     }
-    gaugeMetric.set(labelValues, value, millisFromTimestamp(timstamp));
+    gaugeMetric.set(labelValuesCopy, value, millisFromTimestamp(timstamp));
   }
 
   /**

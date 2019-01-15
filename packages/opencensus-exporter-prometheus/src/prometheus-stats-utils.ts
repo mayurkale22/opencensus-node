@@ -14,49 +14,10 @@
  * limitations under the License.
  */
 
-import {BucketOptions, DistributionBucket, DistributionValue, LabelKey, LabelValue, Metric as OCMetric, MetricDescriptor as OCMetricDescriptor, MetricDescriptor, MetricDescriptorType, TimeSeriesPoint, Timestamp} from '@opencensus/core';
-import {Counter, Gauge, Histogram, Metric, Registry} from 'prom-client';
+import {LabelKey, LabelValue, MetricDescriptorType, Timestamp} from '@opencensus/core';
 
 // Histogram cannot have a label named 'le'
 const RESERVED_HISTOGRAM_LABEL = 'le';
-
-/** Creates a Metric using the LabelKeys and LabelValues. */
-export function createMetric(
-    metricDescriptor: MetricDescriptor, metricPrefix: string): Metric {
-  // Create a new metric if there is no one
-  const metricObj = {
-    name: createMetricName(metricDescriptor.name, metricPrefix),
-    help: metricDescriptor.description,
-    labelNames: createLabelNames(metricDescriptor.labelKeys)
-  };
-  // Creating the metric based on MetricDescriptorType
-  let metric;
-  switch (metricDescriptor.type) {
-    case MetricDescriptorType.CUMULATIVE_INT64:
-    case MetricDescriptorType.CUMULATIVE_DOUBLE:
-      metric = new Counter(metricObj);
-      break;
-    case MetricDescriptorType.GAUGE_INT64:
-    case MetricDescriptorType.GAUGE_DOUBLE:
-      metric = new Gauge(metricObj);
-      break;
-    case MetricDescriptorType.CUMULATIVE_DISTRIBUTION:
-    case MetricDescriptorType.GAUGE_DISTRIBUTION:
-      validateDisallowedLeLabelForHistogram(metricObj.labelNames);
-      // const distribution = {
-      //   name: metricName,
-      //   help: view.description,
-      //   labelNames: labels,
-      //   buckets: this.getBoundaries(view, tags)
-      // };
-      const distribution = Object.assign({}, metricObj, {buckets: []});
-      metric = new Histogram(distribution);
-      break;
-    default:
-      throw Error(`Aggregation %s is not supported : ${metricDescriptor.type}`);
-  }
-  return metric;
-}
 
 /** Creates Metric name. */
 export function createMetricName(name: string, metricPrefix: string): string {
@@ -65,6 +26,16 @@ export function createMetricName(name: string, metricPrefix: string): string {
   } else {
     return sanitizePrometheusMetricName(name);
   }
+}
+
+/**
+ * Converts the list of label keys to a list of string label names. Also
+ * sanitizes the label keys.
+ */
+export function createLabelNames(labelKeys: LabelKey[]): string[] {
+  return labelKeys.map(labelKey => {
+    return sanitizePrometheusMetricName(labelKey.key);
+  });
 }
 
 export function createLabelValues(
@@ -82,14 +53,19 @@ export function createLabelValues(
   return labels;
 }
 
-/**
- * Converts the list of label keys to a list of string label names. Also
- * sanitizes the label keys.
- */
-export function createLabelNames(labelKeys: LabelKey[]): string[] {
-  return labelKeys.map(labelKey => {
-    return sanitizePrometheusMetricName(labelKey.key);
-  });
+export function isCumulativeMetricType(type: MetricDescriptorType): boolean {
+  return type === MetricDescriptorType.CUMULATIVE_INT64 ||
+      type === MetricDescriptorType.CUMULATIVE_DOUBLE;
+}
+
+export function isGaugeMetricType(type: MetricDescriptorType): boolean {
+  return type === MetricDescriptorType.GAUGE_INT64 ||
+      type === MetricDescriptorType.GAUGE_DOUBLE;
+}
+
+export function isDistributionMetricType(type: MetricDescriptorType): boolean {
+  return type === MetricDescriptorType.CUMULATIVE_DISTRIBUTION ||
+      type === MetricDescriptorType.GAUGE_DISTRIBUTION;
 }
 
 /**
@@ -104,7 +80,7 @@ function sanitizePrometheusMetricName(name: string): string {
 }
 
 /** Throws an error if there is an 'le' label name histogram label names */
-function validateDisallowedLeLabelForHistogram(labels: string[]) {
+export function validateDisallowedLeLabelForHistogram(labels: string[]) {
   labels.forEach(label => {
     if (label === RESERVED_HISTOGRAM_LABEL) {
       throw Error(
@@ -116,9 +92,3 @@ function validateDisallowedLeLabelForHistogram(labels: string[]) {
 export function millisFromTimestamp(timestamp: Timestamp): number {
   return timestamp.seconds * 1e3 + Math.floor(timestamp.nanos / 1e6);
 }
-
-export const TEST_ONLY = {
-  createLabelNames,
-  createMetricName,
-  validateDisallowedLeLabelForHistogram
-};
