@@ -32,16 +32,12 @@ const stats = new Stats();
 // Add your port and startServer to the Prometheus options
 const exporter = new PrometheusStatsExporter({
   port: 9464,
-  startServer: false
+  startServer: true
 });
 
 // Pass the created exporter to Stats
 stats.registerExporter(exporter);
 
-// Run the server
-exporter.startServer(function callback() {
-  // Callback
-});
 // [END setup_exporter]
 
 // The latency in milliseconds

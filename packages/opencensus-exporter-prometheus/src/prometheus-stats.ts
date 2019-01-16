@@ -74,7 +74,7 @@ export class PrometheusStatsExporter implements StatsEventListener {
   }
 
   /**
-   * Not used because prometheues scrape data from /metrics endpoint.
+   * Not used because prometheues scrape data from '/metrics' endpoint.
    */
   start(): void {}
 
