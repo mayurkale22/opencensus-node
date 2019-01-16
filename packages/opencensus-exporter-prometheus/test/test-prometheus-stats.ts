@@ -49,8 +49,6 @@ describe('Prometheus Stats Exporter', () => {
     const measurement2 = {measure, tags, value: 3};
     stats.record(measurement, measurement2);
 
-    exporter.export();
-
     http.get(prometheusServerUrl, (res) => {
           res.on('data', (chunk) => {
             const body = chunk.toString();
@@ -60,10 +58,8 @@ describe('Prometheus Stats Exporter', () => {
                 lines[0],
                 '# HELP ocnodemetrics_countview A count aggregation example');
             assert.equal(lines[1], '# TYPE ocnodemetrics_countview counter');
-            assert.ok(
-                lines[2].indexOf(
-                    'ocnodemetrics_countview{tagKey1="tagValue1"} 2') !== -1,
-            );
+            assert.equal(
+                lines[2], 'ocnodemetrics_countview{tagKey1="tagValue1"} 2');
             done();
           });
         }).on('error', done);
@@ -81,8 +77,6 @@ describe('Prometheus Stats Exporter', () => {
     const measurement2 = {measure, tags, value: 3};
     stats.record(measurement, measurement2);
 
-    exporter.export();
-
     http.get(prometheusServerUrl, (res) => {
           res.on('data', (chunk) => {
             const body = chunk.toString();
@@ -92,9 +86,9 @@ describe('Prometheus Stats Exporter', () => {
                 lines[0],
                 '# HELP ocnodemetrics_sumview A sum aggregation example');
             assert.equal(lines[1], '# TYPE ocnodemetrics_sumview counter');
-            assert.ok(
-                lines[2].indexOf(
-                    'ocnodemetrics_sumview{tagKey1="tagValue1"} 5') !== -1,
+            assert.equal(
+                lines[2],
+                'ocnodemetrics_sumview{tagKey1="tagValue1"} 5',
             );
             done();
           });
@@ -113,8 +107,6 @@ describe('Prometheus Stats Exporter', () => {
     const measurement2 = {measure, tags, value: 3};
     stats.record(measurement, measurement2);
 
-    exporter.export();
-
     http.get(prometheusServerUrl, (res) => {
           res.on('data', (chunk) => {
             const body = chunk.toString();
@@ -124,11 +116,8 @@ describe('Prometheus Stats Exporter', () => {
                 lines[0],
                 '# HELP ocnodemetrics_lastvalueview A last value aggregation example');
             assert.equal(lines[1], '# TYPE ocnodemetrics_lastvalueview gauge');
-            assert.ok(
-                lines[2].indexOf(
-                    'ocnodemetrics_lastvalueview{tagKey1="tagValue1"} 3') !==
-                    -1,
-            );
+            assert.equal(
+                lines[2], 'ocnodemetrics_lastvalueview{tagKey1="tagValue1"} 3');
             done();
           });
         }).on('error', done);
@@ -147,8 +136,6 @@ describe('Prometheus Stats Exporter', () => {
     const measurement2 = {measure, tags, value: 31};
     stats.record(measurement, measurement2);
 
-    exporter.export();
-
     http.get(prometheusServerUrl, (res) => {
           res.on('data', (chunk) => {
             const body = chunk.toString();
@@ -159,74 +146,63 @@ describe('Prometheus Stats Exporter', () => {
             assert.equal(
                 lines[1],
                 '# TYPE ocnodemetrics_distributionview_count counter');
-            assert.ok(
-                lines[2].indexOf(
-                    'ocnodemetrics_distributionview_count{tagKey1="tagValue1"} 2') !==
-                -1);
+            assert.equal(
+                lines[2],
+                'ocnodemetrics_distributionview_count{tagKey1="tagValue1"} 2');
             assert.equal(
                 lines[4],
                 '# HELP ocnodemetrics_distributionview_sum A distribution aggregation example');
             assert.equal(
                 lines[5], '# TYPE ocnodemetrics_distributionview_sum counter');
-            assert.ok(
-                lines[6].indexOf(
-                    'ocnodemetrics_distributionview_sum{tagKey1="tagValue1"} 43') !==
-                -1);
+            assert.equal(
+                lines[6],
+                'ocnodemetrics_distributionview_sum{tagKey1="tagValue1"} 43');
             assert.equal(
                 lines[8],
                 '# HELP ocnodemetrics_distributionview_bucket A distribution aggregation example');
             assert.equal(
                 lines[9],
                 '# TYPE ocnodemetrics_distributionview_bucket counter');
-            assert.ok(
-                lines[10].indexOf(
-                    'ocnodemetrics_distributionview_bucket{tagKey1="tagValue1",le="10"} 0') !==
-                -1);
-            assert.ok(
-                lines[11].indexOf(
-                    'ocnodemetrics_distributionview_bucket{tagKey1="tagValue1",le="20"} 1') !==
-                -1);
-            assert.ok(
-                lines[12].indexOf(
-                    'ocnodemetrics_distributionview_bucket{tagKey1="tagValue1",le="30"} 1') !==
-                -1);
-            assert.ok(
-                lines[13].indexOf(
-                    'ocnodemetrics_distributionview_bucket{tagKey1="tagValue1",le="40"} 2') !==
-                -1);
-            assert.ok(
-                lines[14].indexOf(
-                    'ocnodemetrics_distributionview_bucket{tagKey1="tagValue1",le="+Inf"} 2') !==
-                -1);
+            assert.equal(
+                lines[10],
+                'ocnodemetrics_distributionview_bucket{tagKey1="tagValue1",le="10"} 0');
+            assert.equal(
+                lines[11],
+                'ocnodemetrics_distributionview_bucket{tagKey1="tagValue1",le="20"} 1');
+            assert.equal(
+                lines[12],
+                'ocnodemetrics_distributionview_bucket{tagKey1="tagValue1",le="30"} 1');
+            assert.equal(
+                lines[13],
+                'ocnodemetrics_distributionview_bucket{tagKey1="tagValue1",le="40"} 2');
+            assert.equal(
+                lines[14],
+                'ocnodemetrics_distributionview_bucket{tagKey1="tagValue1",le="+Inf"} 2');
 
             done();
           });
         }).on('error', done);
   });
 
-  //   it('should throw error when labels contains "le" label name in histogram
-  //   label names',
-  //      () => {
-  //        const measure =
-  //            stats.createMeasureDouble('testMeasureDouble',
-  //            MeasureUnit.UNIT);
-  //        const tags = {le: 'tagValue1'};
-  //        const tagKeys = Object.keys(tags);
-  //        const boundaries = [10, 20, 30, 40];
-  //        stats.createView(
-  //            'ocnodemetrics/distributionview1', measure,
-  //            AggregationType.DISTRIBUTION, tagKeys,
-  //            'A distribution aggregation example', boundaries);
+  it('should throw error when labels contains "le" label name in histogram label names',
+     () => {
+       const measure =
+           stats.createMeasureDouble('testMeasureDouble', MeasureUnit.UNIT);
+       const tags = {le: 'tagValue1'};
+       const tagKeys = Object.keys(tags);
+       const boundaries = [10, 20, 30, 40];
+       stats.createView(
+           'ocnodemetrics/distributionview1', measure,
+           AggregationType.DISTRIBUTION, tagKeys,
+           'A distribution aggregation example', boundaries);
 
-  //        const measurement = {measure, tags, value: 2};
-  //        stats.record(measurement);
+       const measurement = {measure, tags, value: 2};
+       stats.record(measurement);
 
-  //        assert.throws(() => {
-  //          exporter.export();
-  //        }, /^Error: Prometheus Histogram cannot have a label named 'le'
-  //        because it is a reserved label for bucket boundaries. Please remove
-  //        this key from your view.$/);
-  //      });
+       assert.throws(() => {
+         exporter.export();
+       }, /^Error: Prometheus Histogram cannot have a label named 'le' because it is a reserved label for bucket boundaries. Please remove this key from your view.$/);
+     });
 });
 
 describe('Prometheus Stats Exporter with prefix option', () => {
@@ -258,8 +234,6 @@ describe('Prometheus Stats Exporter with prefix option', () => {
     const measurement2 = {measure, tags, value: 3};
     stats.record(measurement, measurement2);
 
-    exporter.export();
-
     http.get(prometheusServerUrl, (res) => {
           res.on('data', (chunk) => {
             const body = chunk.toString();
@@ -269,9 +243,7 @@ describe('Prometheus Stats Exporter with prefix option', () => {
                 lines[0],
                 '# HELP opencensus_test_key_1 A count aggregation example');
             assert.equal(lines[1], '# TYPE opencensus_test_key_1 counter');
-            assert.ok(
-                lines[2].indexOf('opencensus_test_key_1{le="tagValue1"} 2') !==
-                -1);
+            assert.equal(lines[2], 'opencensus_test_key_1{le="tagValue1"} 2');
             done();
           });
         }).on('error', done);

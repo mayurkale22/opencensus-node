@@ -15,7 +15,7 @@
  */
 import * as assert from 'assert';
 
-import {createLabelNames, createMetricName, millisFromTimestamp, validateDisallowedLeLabelForHistogram} from '../src/prometheus-stats-utils';
+import {createLabelNames, createMetricName, validateDisallowedLeLabelForHistogram} from '../src/prometheus-stats-utils';
 
 describe('createLabelNames()', () => {
   it('should return a label names', () => {
@@ -57,14 +57,6 @@ describe('createMetricName()', () => {
       assert.throws(() => {
         validateDisallowedLeLabelForHistogram(['key1', 'le']);
       }, /^Error: Prometheus Histogram cannot have a label named 'le' because it is a reserved label for bucket boundaries. Please remove this key from your view.$/);
-    });
-  });
-
-  describe('millisFromTimestamp()', () => {
-    it('should return a millis number', () => {
-      const timestamp = {seconds: 1450000100, nanos: 1e7};
-      const millis = millisFromTimestamp(timestamp);
-      assert.equal(millis, 1450000100010);
     });
   });
 });

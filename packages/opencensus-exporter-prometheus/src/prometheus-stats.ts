@@ -19,7 +19,7 @@ import {DistributionValue, MetricDescriptor, MetricProducerManager, Metrics} fro
 import * as express from 'express';
 import * as http from 'http';
 import {Counter, Gauge, labelValues, Registry} from 'prom-client';
-import {createLabelNames, createLabelValues, createMetricName, isCumulativeMetricType, isDistributionMetricType, isGaugeMetricType, millisFromTimestamp, validateDisallowedLeLabelForHistogram} from './prometheus-stats-utils';
+import {createLabelNames, createLabelValues, createMetricName, isCumulativeMetricType, isDistributionMetricType, isGaugeMetricType, validateDisallowedLeLabelForHistogram} from './prometheus-stats-utils';
 
 const HISTOGRAM_SUFFIX_SUM = '_sum';
 const HISTOGRAM_SUFFIX_COUNT = '_count';
@@ -50,10 +50,9 @@ export class PrometheusStatsExporter implements StatsEventListener {
   static readonly DEFAULT_OPTIONS = {
     port: 9464,
     startServer: false,
-    contentType: 'text/plain; text/plain; version=0.0.4; charset=utf-8',
+    contentType: 'text/plain; version=0.0.4; charset=utf-8',
     prefix: ''
   };
-  private timer: NodeJS.Timer;
   private logger: Logger;
   private prefix: string;
   private port: number;
@@ -75,28 +74,14 @@ export class PrometheusStatsExporter implements StatsEventListener {
   }
 
   /**
-   * Starts the Prometheus exporter that polls Metric from Metrics library and
-   * send batched data to backend.
+   * Not used because prometheues scrape data from /metrics endpoint.
    */
-  start(): void {
-    this.timer = setInterval(async () => {
-      try {
-        await this.export();
-      } catch (err) {
-        throw Error(err);
-      }
-    }, 5000);
-  }
+  start(): void {}
 
   /**
-   * Clear the interval timer to stop uploading metrics. It should be called
-   * whenever the exporter is not needed anymore.
+   * Polls Metric from Metrics library and send batched data to backend.
    */
-  close() {
-    clearInterval(this.timer);
-  }
-
-  async export() {
+  export(): string {
     const metricProducerManager: MetricProducerManager =
         Metrics.getMetricProducerManager();
 
@@ -105,6 +90,7 @@ export class PrometheusStatsExporter implements StatsEventListener {
         this.registerMetric(metric);
       }
     }
+    return this.registry.metrics();
   }
 
   registerMetric(metric: OcMetric) {
@@ -118,22 +104,21 @@ export class PrometheusStatsExporter implements StatsEventListener {
         const type = metricDescriptor.type;
         if (isCumulativeMetricType(type)) {
           this.updateCounterMetric(
-              metricDescriptor, point.value as number, labelNames, labelValues,
-              point.timestamp);
+              metricDescriptor, point.value as number, labelNames, labelValues);
         } else if (isGaugeMetricType(type)) {
           this.updateGaugeMetric(
-              metricDescriptor, point.value as number, labelNames, labelValues,
-              point.timestamp);
+              metricDescriptor, point.value as number, labelNames, labelValues);
         } else if (isDistributionMetricType(type)) {
           validateDisallowedLeLabelForHistogram(labelNames);
+
           const distribution = point.value as DistributionValue;
 
           this.updateCounterMetric(
               metricDescriptor, distribution.count, labelNames, labelValues,
-              point.timestamp, HISTOGRAM_SUFFIX_COUNT);
+              HISTOGRAM_SUFFIX_COUNT);
           this.updateCounterMetric(
               metricDescriptor, distribution.sum, labelNames, labelValues,
-              point.timestamp, HISTOGRAM_SUFFIX_SUM);
+              HISTOGRAM_SUFFIX_SUM);
 
           let cumulativeCount = 0;
           const labelNamesWithLe = Object.assign([], labelNames);
@@ -151,7 +136,7 @@ export class PrometheusStatsExporter implements StatsEventListener {
             cumulativeCount += distribution.buckets[i].count;
             this.updateCounterMetric(
                 metricDescriptor, cumulativeCount, labelNamesWithLe,
-                labelValuesWithLe, point.timestamp, HISTOGRAM_SUFFIX_BUCKET);
+                labelValuesWithLe, HISTOGRAM_SUFFIX_BUCKET);
           }
         } else {
           throw Error(`Aggregation %s is not supported : ${type}`);
@@ -162,7 +147,7 @@ export class PrometheusStatsExporter implements StatsEventListener {
 
   private updateCounterMetric(
       metricDescriptor: MetricDescriptor, value: number, labelNames: string[],
-      labelValues: labelValues, timstamp: Timestamp, metricNameSuffix = '') {
+      labelValues: labelValues, metricNameSuffix = '') {
     let counterMetric: Counter;
     const labelValuesCopy = Object.assign({}, labelValues);
     const fullMetricName = createMetricName(
@@ -180,12 +165,12 @@ export class PrometheusStatsExporter implements StatsEventListener {
       this.registry.registerMetric(metric);
       counterMetric = metric;
     }
-    counterMetric.inc(labelValuesCopy, value, millisFromTimestamp(timstamp));
+    counterMetric.inc(labelValuesCopy, value);
   }
 
   private updateGaugeMetric(
       metricDescriptor: MetricDescriptor, value: number, labelNames: string[],
-      labelValues: labelValues, timstamp: Timestamp, metricNameSuffix = '') {
+      labelValues: labelValues, metricNameSuffix = '') {
     const fullMetricName = createMetricName(
         `${metricDescriptor.name}${metricNameSuffix}`, this.prefix);
     let gaugeMetric: Gauge;
@@ -203,7 +188,7 @@ export class PrometheusStatsExporter implements StatsEventListener {
       this.registry.registerMetric(metric);
       gaugeMetric = metric;
     }
-    gaugeMetric.set(labelValuesCopy, value, millisFromTimestamp(timstamp));
+    gaugeMetric.set(labelValuesCopy, value);
   }
 
   /**
@@ -214,7 +199,7 @@ export class PrometheusStatsExporter implements StatsEventListener {
     this.app.get('/metrics', (req, res) => {
       res.set(
           'Content-Type', PrometheusStatsExporter.DEFAULT_OPTIONS.contentType);
-      res.end(this.registry.metrics());
+      res.end(this.export());
     });
 
     this.server = this.app.listen(this.port, () => {

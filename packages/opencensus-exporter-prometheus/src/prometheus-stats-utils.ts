@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import {LabelKey, LabelValue, MetricDescriptorType, Timestamp} from '@opencensus/core';
+import {LabelKey, LabelValue, MetricDescriptorType} from '@opencensus/core';
 
 // Histogram cannot have a label named 'le'
 const RESERVED_HISTOGRAM_LABEL = 'le';
@@ -87,8 +87,4 @@ export function validateDisallowedLeLabelForHistogram(labels: string[]) {
           'Prometheus Histogram cannot have a label named \'le\' because it is a reserved label for bucket boundaries. Please remove this key from your view.');
     }
   });
-}
-
-export function millisFromTimestamp(timestamp: Timestamp): number {
-  return timestamp.seconds * 1e3 + Math.floor(timestamp.nanos / 1e6);
 }
