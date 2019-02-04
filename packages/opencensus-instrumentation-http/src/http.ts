@@ -215,7 +215,7 @@ export class HttpPlugin extends BasePlugin {
                 HttpPlugin.ATTRIBUTE_HTTP_STATUS_CODE,
                 response.statusCode.toString());
 
-            rootSpan.status =
+            rootSpan.status.code =
                 HttpPlugin.convertTraceStatus(response.statusCode);
 
             // Message Event ID is not defined
@@ -365,7 +365,7 @@ export class HttpPlugin extends BasePlugin {
               HttpPlugin.ATTRIBUTE_HTTP_STATUS_CODE,
               response.statusCode.toString());
 
-          span.status = HttpPlugin.convertTraceStatus(response.statusCode);
+          span.status.code = HttpPlugin.convertTraceStatus(response.statusCode);
 
           // Message Event ID is not defined
           span.addMessageEvent(
@@ -378,7 +378,7 @@ export class HttpPlugin extends BasePlugin {
           span.addAttribute(HttpPlugin.ATTRIBUTE_HTTP_ERROR_NAME, error.name);
           span.addAttribute(
               HttpPlugin.ATTRIBUTE_HTTP_ERROR_MESSAGE, error.message);
-          span.status = TraceStatusCodes.UNKNOWN;
+          span.status.code = TraceStatusCodes.UNKNOWN;
           span.end();
         });
       });
@@ -387,7 +387,7 @@ export class HttpPlugin extends BasePlugin {
         span.addAttribute(HttpPlugin.ATTRIBUTE_HTTP_ERROR_NAME, error.name);
         span.addAttribute(
             HttpPlugin.ATTRIBUTE_HTTP_ERROR_MESSAGE, error.message);
-        span.status = TraceStatusCodes.UNKNOWN;
+        span.status.code = TraceStatusCodes.UNKNOWN;
         span.end();
       });
 

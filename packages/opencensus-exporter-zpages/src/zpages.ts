@@ -141,14 +141,14 @@ export class ZpagesExporter implements Exporter, StatsEventListener {
   private sendTrace(trace: RootSpan) {
     /** If there is no status, put status 0 (OK) */
     if (!trace.status) {
-      trace.status = 0;
+      trace.status.code = 0;
     }
     this.pushSpan(trace);
 
     for (const span of trace.spans) {
       /** If there is no status, put status 0 (OK) */
       if (!span.status) {
-        span.status = 0;
+        span.status.code = 0;
       }
       this.pushSpan(span);
     }

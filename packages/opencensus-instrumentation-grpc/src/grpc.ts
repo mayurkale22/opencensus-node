@@ -219,14 +219,14 @@ export class GrpcPlugin extends BasePlugin {
         // tslint:disable-next-line:no-any
         value: any, trailer: grpcTypes.Metadata, flags: grpcTypes.writeFlags) {
       if (err) {
-        rootSpan.status = GrpcPlugin.convertGrpcStatusToSpanStatus(err.code);
+        rootSpan.status.code = GrpcPlugin.convertGrpcStatusToSpanStatus(err.code);
         rootSpan.addAttribute(
             GrpcPlugin.ATTRIBUTE_GRPC_STATUS_CODE, err.code.toString());
         rootSpan.addAttribute(GrpcPlugin.ATTRIBUTE_GRPC_ERROR_NAME, err.name);
         rootSpan.addAttribute(
             GrpcPlugin.ATTRIBUTE_GRPC_ERROR_MESSAGE, err.message);
       } else {
-        rootSpan.status =
+        rootSpan.status.code =
             GrpcPlugin.convertGrpcStatusToSpanStatus(grpcTypes.status.OK);
         rootSpan.addAttribute(
             GrpcPlugin.ATTRIBUTE_GRPC_STATUS_CODE,
@@ -256,8 +256,9 @@ export class GrpcPlugin extends BasePlugin {
 
     plugin.tracer.wrapEmitter(call);
     call.on('finish', () => {
-      rootSpan.status =
+      rootSpan.status.code =
           GrpcPlugin.convertGrpcStatusToSpanStatus(call.status.code);
+          call.status.details
       rootSpan.addAttribute(
           GrpcPlugin.ATTRIBUTE_GRPC_STATUS_CODE, call.status.code.toString());
       // if there is an error, span is ended on error event, otherwise here
@@ -351,14 +352,14 @@ export class GrpcPlugin extends BasePlugin {
       // tslint:disable-next-line:no-any
       const wrappedFn = (err: grpcTypes.ServiceError, res: any) => {
         if (err) {
-          span.status = GrpcPlugin.convertGrpcStatusToSpanStatus(err.code);
+          span.status.code = GrpcPlugin.convertGrpcStatusToSpanStatus(err.code);
           span.addAttribute(
               GrpcPlugin.ATTRIBUTE_GRPC_STATUS_CODE, err.code.toString());
           span.addAttribute(GrpcPlugin.ATTRIBUTE_GRPC_ERROR_NAME, err.name);
           span.addAttribute(
               GrpcPlugin.ATTRIBUTE_GRPC_ERROR_MESSAGE, err.message);
         } else {
-          span.status =
+          span.status.code =
               GrpcPlugin.convertGrpcStatusToSpanStatus(grpcTypes.status.OK);
           span.addAttribute(
               GrpcPlugin.ATTRIBUTE_GRPC_STATUS_CODE,
@@ -423,7 +424,7 @@ export class GrpcPlugin extends BasePlugin {
         });
 
         call.on('status', (status: Status) => {
-          span.status = GrpcPlugin.convertGrpcStatusToSpanStatus(status.code);
+          span.status.code = GrpcPlugin.convertGrpcStatusToSpanStatus(status.code);
           span.addAttribute(
               GrpcPlugin.ATTRIBUTE_GRPC_STATUS_CODE, status.code.toString());
 

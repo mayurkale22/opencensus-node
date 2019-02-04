@@ -141,7 +141,7 @@ export class Http2Plugin extends HttpPlugin {
         span.addAttribute(
             Http2Plugin.ATTRIBUTE_HTTP_STATUS_CODE,
             `${responseHeaders[':status']}`);
-        span.status =
+        span.status.code =
             Http2Plugin.convertTraceStatus(+responseHeaders[':status']);
       });
 
@@ -258,7 +258,7 @@ export class Http2Plugin extends HttpPlugin {
                 Http2Plugin.ATTRIBUTE_HTTP_USER_AGENT, userAgent);
             rootSpan.addAttribute(
                 Http2Plugin.ATTRIBUTE_HTTP_STATUS_CODE, `${statusCode}`);
-            rootSpan.status = Http2Plugin.convertTraceStatus(statusCode);
+            rootSpan.status.code = Http2Plugin.convertTraceStatus(statusCode);
 
             rootSpan.addMessageEvent(
                 'MessageEventTypeRecv', uuid.v4().split('-').join(''));

@@ -328,7 +328,7 @@ describe('OpenCensus Agent Exporter', () => {
 
     tracing.tracer.startRootSpan(rootSpanOptions, (rootSpan: RootSpan) => {
       // Status
-      rootSpan.status = 200;
+      rootSpan.status.code = 200;
 
       // Attribute
       rootSpan.addAttribute('my_attribute_string', 'bar2');

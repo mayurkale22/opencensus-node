@@ -30,6 +30,17 @@ export interface Attributes {
   [attributeKey: string]: string|number|boolean;
 }
 
+/**
+ * The status of a Span by providing a standard code in conjunction
+ * with an optional descriptive message.
+ */
+export interface Status {
+  /** The status code. */
+  code: number;
+  /** A developer-facing error message. */
+  message?: string;
+}
+
 /** A text annotation with a set of attributes. */
 export interface Annotation {
   /** A user-supplied message describing the event. */
@@ -117,7 +128,7 @@ export interface Span {
   logger: loggerTypes.Logger;
 
   /** A final status for this span */
-  status: number;
+  status: Status;
 
   /** A set of attributes, each in the format [KEY]:[VALUE] */
   attributes: Attributes;

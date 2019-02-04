@@ -32,6 +32,114 @@ export type TranslatedSpan = {
   labels: Record<string, string>
 };
 
+export type Span = {
+  name?: string,
+  spanId?: string,
+  parentSpanId?: string,
+  displayName?: TruncatableString,
+  startTime?: string,
+  endTime?: string,
+  attributes?: Attributes,
+  stackTrace?: StackTrace,
+  timeEvents?: TimeEvents,
+  links?: Links,
+  status?: Status,
+  sameProcessAsParentSpan?: boolean,
+  childSpanCount?: number
+};
+
+export type Attributes = {
+  attributeMap?: {[key: string]: AttributeValue;};
+  droppedAttributesCount?: number;
+};
+
+export type AttributeValue = {
+  boolValue?: boolean;
+  intValue?: string;
+  stringValue?: TruncatableString;
+};
+
+export type TruncatableString = {
+  value?: string;
+  truncatedByteCount?: number;
+};
+
+export type Links = {
+  droppedLinksCount?: number;
+  link?: Link[];
+};
+
+export type Link = {
+  attributes?: Attributes;
+  spanId?: string;
+  traceId?: string;
+  type?: string;
+};
+
+export type StackTrace = {
+  stackFrames?: StackFrames;
+  stackTraceHashId?: string;
+};
+
+export type StackFrames = {
+  droppedFramesCount?: number;
+  frame?: StackFrame[];
+};
+
+export type StackFrame = {
+  columnNumber?: string;
+  fileName?: TruncatableString;
+  functionName?: TruncatableString;
+  lineNumber?: string;
+  loadModule?: Module;
+  originalFunctionName?: TruncatableString;
+  sourceVersion?: TruncatableString;
+};
+
+export type Module = {
+  buildId?: TruncatableString;
+  module?: TruncatableString;
+};
+
+export type Status = {
+  code?: number;
+
+  // tslint:disable: no-any
+  details?: Array<{[key: string]: any;}>;
+  message?: string;
+};
+
+export type TimeEvents = {
+  droppedAnnotationsCount?: number;
+  droppedMessageEventsCount?: number;
+  timeEvent?: TimeEvent[];
+};
+
+export type TimeEvent = {
+  annotation?: Annotation;
+  messageEvent?: MessageEvent;
+  time?: string;
+};
+
+export type Annotation = {
+  attributes?: Attributes;
+  description?: TruncatableString;
+};
+
+export type MessageEvent = {
+  compressedSizeBytes?: string;
+  id?: string;
+  type?: Type;
+  uncompressedSizeBytes?: string;
+};
+
+export enum Type {
+  TYPE_UNSPECIFIED = 0,
+  SENT = 1,
+  RECEIVED = 2
+}
+
+
 /**
  * Options for stackdriver configuration
  */
@@ -56,6 +164,12 @@ export interface StackdriverExporterOptions extends ExporterConfig {
    * Optional
    */
   onMetricUploadError?: (err: Error) => void;
+}
+
+export interface SpansWithCredentials {
+  name: string;
+  resource: {spans: {}};
+  auth: JWT;
 }
 
 export interface TracesWithCredentials {
