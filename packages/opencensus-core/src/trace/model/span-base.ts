@@ -176,7 +176,7 @@ export abstract class SpanBase implements types.Span {
     }
     this.annotations.push({
       'description': description,
-      'attributes': attributes,
+      'attributes': attributes || {},
       'timestamp': timestamp ? timestamp : Date.now(),
     } as types.Annotation);
   }

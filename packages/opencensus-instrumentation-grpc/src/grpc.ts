@@ -18,9 +18,9 @@ import {BasePlugin, CanonicalCode, HeaderGetter, HeaderSetter, PluginInternalFil
 import {EventEmitter} from 'events';
 import * as grpcTypes from 'grpc';
 import * as lodash from 'lodash';
-import * as path from 'path';
-import * as semver from 'semver';
 import * as shimmer from 'shimmer';
+
+import {Client} from 'grpc';
 
 const findIndex = lodash.findIndex;
 
@@ -31,6 +31,11 @@ export type GrpcModule = typeof grpcTypes;
 
 type MakeClientConstructor = typeof grpcTypes.makeGenericClientConstructor;
 type RegisterMethod = typeof grpcTypes.Server.prototype.register;
+
+
+type MakeClientConstructorFunction =
+    (methods: {[key: string]: {originalName?: string;};}, serviceName: string,
+     classOptions: never) => typeof Client;
 
 type Status = {
   code: number, details: string; metadata: grpcTypes.Metadata;
@@ -59,23 +64,46 @@ type GrpcClientFunc = typeof Function&{
   responseStream: boolean;
 };
 
-
-type HandlerSet = {
-  // tslint:disable-next-line:no-any
-  func: grpcTypes.handleCall<any, any>;
-  // tslint:disable-next-line:no-any
-  serialize: grpcTypes.serialize<any>;
-  // tslint:disable-next-line:no-any
-  deserialize: grpcTypes.deserialize<any>;
-  type: string;
-};
-
 // tslint:disable:variable-name
 // tslint:disable-next-line:no-any
 let Metadata: any;
 
 // tslint:disable-next-line:no-any
 let GrpcClientModule: any;
+
+type ClientModule = {
+  Client: typeof Client; makeClientConstructor: MakeClientConstructorFunction;
+};
+
+function patchClient(client: ClientModule) {
+  /**
+   * Modifies `makeClientConstructor` so that all of the methods available
+   * through the client are wrapped upon calling the client object constructor.
+   */
+  function makeClientConstructorWrap(
+      makeClientConstructor: MakeClientConstructorFunction):
+      MakeClientConstructorFunction {
+        console.log('inside makeClientConstructorWrap');
+    return function makeClientConstructorTrace(this: never, methods) {
+      console.log('&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&');
+      // Client is a class.
+      // tslint:disable-next-line:variable-name
+      const Client = makeClientConstructor.apply(this, arguments);
+      const methodsToWrap = [
+        ...Object.keys(methods),
+        ...Object.keys(methods)
+                .map(methodName => methods[methodName].originalName)
+                .filter(
+                    originalName => !!originalName &&
+                        Client.prototype.hasOwnProperty(originalName)) as
+            string[]
+      ];
+      return Client;
+    };
+  }
+console.log(client);
+  shimmer.wrap(client, 'makeClientConstructor', makeClientConstructorWrap);
+}
 
 /** gRPC instrumentation plugin for Opencensus */
 export class GrpcPlugin extends BasePlugin {
@@ -109,14 +137,16 @@ export class GrpcPlugin extends BasePlugin {
   protected applyPatch() {
     this.logger.debug('applying patch to %s@%s', this.moduleName, this.version);
 
+    console.log('trying to patch register');
     shimmer.wrap(
-        this.moduleExports.Server.prototype, 'register' as never,
+        this.moduleExports.Server.prototype, 'register',
         this.getPatchServer());
 
     if (this.internalFilesExports) {
       GrpcClientModule = this.internalFilesExports['client'];
       Metadata = this.internalFilesExports['metadata'];
 
+      console.log('trying to patch makeClientConstructor');
       shimmer.wrap(
           GrpcClientModule, 'makeClientConstructor', this.getPatchClient());
     }
@@ -143,7 +173,7 @@ export class GrpcPlugin extends BasePlugin {
   private getPatchServer() {
     return (originalRegister: RegisterMethod) => {
       const plugin = this;
-      plugin.logger.debug('pathcServer');
+      console.log('patchServer');
       return function register<RequestType, ResponseType>(
           // tslint:disable-next-line:no-any
           this: grpcTypes.Server&{handlers: any}, name: string,
@@ -153,6 +183,7 @@ export class GrpcPlugin extends BasePlugin {
         const result = originalRegister.apply(this, arguments);
         const handlerSet = this.handlers[name];
 
+        console.log('patched server');
         // Patch the methods that are invoked when a gRPC service call is
         // made. The function 'func' is the user-implemented handling function.
         shimmer.wrap(
@@ -175,7 +206,7 @@ export class GrpcPlugin extends BasePlugin {
                   kind: SpanKind.SERVER,
                   spanContext: propagation ? propagation.extract(getter) : null
                 };
-                plugin.logger.debug('path func: %s', traceOptions.name);
+                console.log('path func: %s', traceOptions);
 
                 return plugin.tracer.startRootSpan(traceOptions, rootSpan => {
                   if (!rootSpan) {
@@ -282,13 +313,14 @@ export class GrpcPlugin extends BasePlugin {
    * @returns  function that returns a patch for makeClientConstructor.
    */
   private getPatchClient() {
-    const plugin = this;
     return (original: MakeClientConstructor) => {
-      plugin.logger.debug('patchClient');
+      const plugin = this;
+      console.log('patchClient');
       return function makeClientConstructor<ImplementationType>(
           this: typeof grpcTypes.Client,
           methods: grpcTypes.ServiceDefinition<ImplementationType>,
           serviceName: string, options: grpcTypes.GenericClientOptions) {
+        console.log('******************************************');
         const client = original.apply(this, arguments);
         shimmer.massWrap(
             client.prototype, Object.keys(methods) as never[],
@@ -296,7 +328,46 @@ export class GrpcPlugin extends BasePlugin {
         return client;
       };
     };
+
+
+    // return (original: MakeClientConstructor) => {
+    //   const plugin = this;
+    //   console.log('patchClient');
+    //   // tslint:disable-next-line:no-any
+    //   return function makeGenericClientConstructor(this: never, methods: any) {
+    //     console.log('**********************');
+    //     const client = original.apply(this, arguments);
+    //     shimmer.massWrap(
+    //         [client.prototype], Object.keys(methods) as never[],
+    //         plugin.getPatchedClientMethods());
+    //     return client;
+    //   };
+    // };
   }
+
+  private makeClientConstructorWrap() {
+    return (makeClientConstructor: MakeClientConstructorFunction) => {
+      const plugin = this;
+      console.log('patchClient');
+      // tslint:disable-next-line:no-any
+      return function makeClientConstructorTrace(this: never, methods: any) {
+        // Client is a class.
+        // tslint:disable-next-line:variable-name
+        const Client = makeClientConstructor.apply(this, arguments);
+        const methodsToWrap = [
+          ...Object.keys(methods),
+          ...Object.keys(methods)
+                  .map(methodName => methods[methodName].originalName)
+                  .filter(
+                      originalName => !!originalName &&
+                          Client.prototype.hasOwnProperty(originalName)) as
+              string[]
+        ];
+        shimmer.massWrap([Client.prototype], methodsToWrap, plugin.getPatchedClientMethods());
+        return Client;
+      };
+    };
+}
 
 
   /**
@@ -308,7 +379,7 @@ export class GrpcPlugin extends BasePlugin {
     const plugin = this;
     // tslint:disable-next-line:no-any
     return (original: GrpcClientFunc) => {
-      plugin.logger.debug('patchAllClientsMethods');
+      console.log('patchAllClientsMethods');
       return function clientMethodTrace(
           this: grpcTypes.Client,
       ) {
@@ -395,6 +466,7 @@ export class GrpcPlugin extends BasePlugin {
       };
 
       const propagation = plugin.tracer.propagation;
+      console.log(`propagation -> ${propagation}`);
       if (propagation) {
         propagation.inject(setter, span.spanContext);
       }
@@ -490,6 +562,27 @@ export class GrpcPlugin extends BasePlugin {
   static convertGrpcStatusToSpanStatus(statusCode: grpcTypes.status): number {
     return statusCode;
   }
+}
+
+function makeClientConstructorWrap1(
+  makeClientConstructor: MakeClientConstructorFunction):
+  MakeClientConstructorFunction {
+return function makeClientConstructorTrace(this: never, methods) {
+  console.log('inside makeClientConstructorWrap1');
+  // Client is a class.
+  // tslint:disable-next-line:variable-name
+  const Client = makeClientConstructor.apply(this, arguments);
+  const methodsToWrap = [
+    ...Object.keys(methods),
+    ...Object.keys(methods)
+            .map(methodName => methods[methodName].originalName)
+            .filter(
+                originalName => !!originalName &&
+                    Client.prototype.hasOwnProperty(originalName)) as
+        string[]
+  ];
+  return Client;
+};
 }
 
 const plugin = new GrpcPlugin();
