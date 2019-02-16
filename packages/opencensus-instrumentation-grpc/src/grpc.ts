@@ -14,13 +14,14 @@
  * limitations under the License.
  */
 
-import {BasePlugin, CanonicalCode, HeaderGetter, HeaderSetter, PluginInternalFiles, RootSpan, Span, SpanKind} from '@opencensus/core';
+import {BasePlugin, CanonicalCode, HeaderGetter, HeaderSetter, PluginInternalFiles, RootSpan, Span, SpanKind, MessageEventType} from '@opencensus/core';
 import {EventEmitter} from 'events';
 import * as grpcTypes from 'grpc';
 import * as lodash from 'lodash';
-import * as path from 'path';
-import * as semver from 'semver';
 import * as shimmer from 'shimmer';
+
+const SENT_PREFIX = 'Sent';
+const RECV_PREFIX = 'Recv';
 
 const findIndex = lodash.findIndex;
 
@@ -143,13 +144,14 @@ export class GrpcPlugin extends BasePlugin {
   private getPatchServer() {
     return (originalRegister: RegisterMethod) => {
       const plugin = this;
-      plugin.logger.debug('pathcServer');
+      console.log('pathcServer');
       return function register<RequestType, ResponseType>(
           // tslint:disable-next-line:no-any
           this: grpcTypes.Server&{handlers: any}, name: string,
           handler: grpcTypes.handleCall<RequestType, ResponseType>,
           serialize: grpcTypes.serialize<RequestType>,
           deserialize: grpcTypes.deserialize<RequestType>, type: string) {
+            console.log('patched Server');
         const result = originalRegister.apply(this, arguments);
         const handlerSet = this.handlers[name];
 
@@ -171,11 +173,11 @@ export class GrpcPlugin extends BasePlugin {
                 };
 
                 const traceOptions = {
-                  name: `grpc.${name.replace('/', '')}`,
+                  name: `${RECV_PREFIX}.${name.replace('/', '')}`,
                   kind: SpanKind.SERVER,
                   spanContext: propagation ? propagation.extract(getter) : null
                 };
-                plugin.logger.debug('path func: %s', traceOptions.name);
+                console.log('path func: %s', JSON.stringify(traceOptions));
 
                 return plugin.tracer.startRootSpan(traceOptions, rootSpan => {
                   if (!rootSpan) {
@@ -185,6 +187,7 @@ export class GrpcPlugin extends BasePlugin {
                   rootSpan.addAttribute(GrpcPlugin.ATTRIBUTE_GRPC_METHOD, name);
                   rootSpan.addAttribute(
                       GrpcPlugin.ATTRIBUTE_GRPC_KIND, traceOptions.kind);
+                  rootSpan.addMessageEvent(MessageEventType.RECEIVED, '1');
 
                   switch (type) {
                     case 'unary':
@@ -284,11 +287,13 @@ export class GrpcPlugin extends BasePlugin {
   private getPatchClient() {
     const plugin = this;
     return (original: MakeClientConstructor) => {
-      plugin.logger.debug('patchClient');
+      console.log('patchClient');
       return function makeClientConstructor<ImplementationType>(
           this: typeof grpcTypes.Client,
           methods: grpcTypes.ServiceDefinition<ImplementationType>,
           serviceName: string, options: grpcTypes.GenericClientOptions) {
+
+            console.log('patched Client');
         const client = original.apply(this, arguments);
         shimmer.massWrap(
             client.prototype, Object.keys(methods) as never[],
@@ -308,12 +313,12 @@ export class GrpcPlugin extends BasePlugin {
     const plugin = this;
     // tslint:disable-next-line:no-any
     return (original: GrpcClientFunc) => {
-      plugin.logger.debug('patchAllClientsMethods');
+      console.log('patchAllClientsMethods');
       return function clientMethodTrace(
           this: grpcTypes.Client,
       ) {
         const traceOptions = {
-          name: `grpc.${original.path.replace('/', '')}`,
+          name: `${SENT_PREFIX}.${original.path.replace('/', '')}`,
           kind: SpanKind.CLIENT,
         };
         const args = Array.prototype.slice.call(arguments);
@@ -398,9 +403,10 @@ export class GrpcPlugin extends BasePlugin {
       if (propagation) {
         propagation.inject(setter, span.spanContext);
       }
-
+      console.log(propagation);
       span.addAttribute(GrpcPlugin.ATTRIBUTE_GRPC_METHOD, original.path);
       span.addAttribute(GrpcPlugin.ATTRIBUTE_GRPC_KIND, span.kind);
+      span.addMessageEvent(MessageEventType.SENT, '2');
 
       const call = original.apply(self, args);
 
