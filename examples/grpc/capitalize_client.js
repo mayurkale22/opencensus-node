@@ -36,7 +36,7 @@ function main () {
   console.log('> ', data);
 
   tracer.startRootSpan({ name: 'octutorialsClient.capitalize' }, rootSpan => {
-    client.Capitalize({ data: Buffer.from(data) }, function (err, response) {
+    client.capitalize({ data: Buffer.from(data) }, function (err, response) {
       if (err) {
         console.log('could not get grpc response');
         return;

@@ -21,13 +21,17 @@ const tracing = require('@opencensus/nodejs');
 const { B3Format } = require('@opencensus/propagation-b3');
 const { StackdriverTraceExporter } = require('@opencensus/exporter-stackdriver');
 const PROTO_PATH = path.join(__dirname, 'protos/defs.proto');
+let tracer;
 
 /**
  * Implements the Capitalize RPC method.
  */
 function capitalize (call, callback) {
+  const span = tracer.startChildSpan('octutorials.FetchImpl.capitalize');
   const data = call.request.data.toString('utf8');
   const capitalized = data.toUpperCase();
+  for (let i = 0; i < 1000000; i++) {}
+  span.end();
   callback(null, { data: Buffer.from(capitalized) });
 }
 
@@ -52,7 +56,7 @@ function setupOpencensusAndExporters () {
   tracing.registerExporter(exporter).start();
 
   // Starts tracing and set sampling rate
-  const tracer = tracing.start({
+  tracer = tracing.start({
     samplingRate: 1, // // For demo purposes, always sample
     propagation: new B3Format()
   }).tracer;
