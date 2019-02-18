@@ -21,7 +21,7 @@ There are two ways to generate the code needed to work with protocol buffers in 
 
    ```sh
    $ # from this directory
-   $ node ./capitalize_server.js &
+   $ node ./capitalize_server.js
    ```
 
  - Run the client

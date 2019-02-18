@@ -14,11 +14,13 @@
  * limitations under the License.
  */
 
-import {BasePlugin, CanonicalCode, HeaderGetter, HeaderSetter, PluginInternalFiles, RootSpan, Span, SpanKind, MessageEventType} from '@opencensus/core';
+import {BasePlugin, CanonicalCode, HeaderGetter, HeaderSetter, MessageEventType, PluginInternalFiles, RootSpan, Span, SpanKind} from '@opencensus/core';
 import {EventEmitter} from 'events';
 import * as grpcTypes from 'grpc';
 import * as lodash from 'lodash';
 import * as shimmer from 'shimmer';
+import * as uuid from 'uuid';
+const sizeof = require('object-sizeof');
 
 const SENT_PREFIX = 'Sent';
 const RECV_PREFIX = 'Recv';
@@ -44,7 +46,8 @@ type ServerCall = typeof grpcTypes.ServerUnaryCall|
 
 type ServerCallWithMeta = ServerCall&{
   metadata: grpcTypes.Metadata;
-  status: Status
+  status: Status;
+  request: any
 }
 &EventEmitter;
 
@@ -144,14 +147,14 @@ export class GrpcPlugin extends BasePlugin {
   private getPatchServer() {
     return (originalRegister: RegisterMethod) => {
       const plugin = this;
-      console.log('pathcServer');
+      console.log('patchServer');
       return function register<RequestType, ResponseType>(
           // tslint:disable-next-line:no-any
           this: grpcTypes.Server&{handlers: any}, name: string,
           handler: grpcTypes.handleCall<RequestType, ResponseType>,
           serialize: grpcTypes.serialize<RequestType>,
           deserialize: grpcTypes.deserialize<RequestType>, type: string) {
-            console.log('patched Server');
+        console.log('patched Server');
         const result = originalRegister.apply(this, arguments);
         const handlerSet = this.handlers[name];
 
@@ -187,8 +190,14 @@ export class GrpcPlugin extends BasePlugin {
                   rootSpan.addAttribute(GrpcPlugin.ATTRIBUTE_GRPC_METHOD, name);
                   rootSpan.addAttribute(
                       GrpcPlugin.ATTRIBUTE_GRPC_KIND, traceOptions.kind);
-                  rootSpan.addMessageEvent(MessageEventType.RECEIVED, '1');
 
+                    console.log(call.request);
+                    console.log(typeof call.request);
+                    console.log(sizeof(call.request));
+                    rootSpan.addMessageEvent(
+                        MessageEventType.RECEIVED,
+                        uuid.v4().split('-').join(''), Date.now(),
+                        sizeof(call.request));
                   switch (type) {
                     case 'unary':
                     case 'client_stream':
@@ -292,8 +301,7 @@ export class GrpcPlugin extends BasePlugin {
           this: typeof grpcTypes.Client,
           methods: grpcTypes.ServiceDefinition<ImplementationType>,
           serviceName: string, options: grpcTypes.GenericClientOptions) {
-
-            console.log('patched Client');
+        console.log('patched Client');
         const client = original.apply(this, arguments);
         shimmer.massWrap(
             client.prototype, Object.keys(methods) as never[],

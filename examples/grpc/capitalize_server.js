@@ -66,7 +66,7 @@ function setupOpencensusAndExporters () {
   const version = require(path.join(basedir, 'package.json')).version;
 
   // Enables GRPC plugin: Method that enables the instrumentation patch.
-  plugin.plugin.enable(grpc, tracer, version, {}, basedir);
+  plugin.plugin.enable(grpc, tracer, version, /** plugin options */{}, basedir);
 }
 
 setupOpencensusAndExporters();

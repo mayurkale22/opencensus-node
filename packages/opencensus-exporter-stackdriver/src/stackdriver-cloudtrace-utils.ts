@@ -81,7 +81,9 @@ export function createTimeEvents(
           time: new Date(messageEvent.timestamp).toISOString(),
           messageEvent: {
             id: messageEvent.id,
-            type: createMessageEventType(messageEvent.type)
+            type: createMessageEventType(messageEvent.type),
+            compressedSizeBytes: messageEvent.compressedSize? String(messageEvent.compressedSize) : '0',
+            uncompressedSizeBytes: messageEvent.uncompressedSize? String(messageEvent.uncompressedSize) : '0'
           }
         })));
   }
