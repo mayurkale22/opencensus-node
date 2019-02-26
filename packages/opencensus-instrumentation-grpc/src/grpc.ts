@@ -276,13 +276,22 @@ export class GrpcPlugin extends BasePlugin {
     const plugin = this;
     return (original: MakeClientConstructor) => {
       plugin.logger.debug('patchClient');
-      return function makeClientConstructor<ImplementationType>(
+      return function MakeClientConstructor(
           this: typeof grpcTypes.Client,
-          methods: grpcTypes.ServiceDefinition<ImplementationType>,
+          methods: {[key: string]: {originalName?: string;};},
           serviceName: string, options: grpcTypes.GenericClientOptions) {
         const client = original.apply(this, arguments);
+        const methodsToWrap = [
+          ...Object.keys(methods),
+          ...Object.keys(methods)
+                  .map(methodName => methods[methodName].originalName)
+                  .filter(
+                      originalName => !!originalName &&
+                          client.prototype.hasOwnProperty(originalName)) as
+              string[]
+        ];
         shimmer.massWrap(
-            client.prototype, Object.keys(methods) as never[],
+            client.prototype, methodsToWrap as never[],
             plugin.getPatchedClientMethods());
         return client;
       };

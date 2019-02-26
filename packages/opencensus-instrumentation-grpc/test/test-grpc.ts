@@ -130,7 +130,7 @@ function createClient(grpc: GrpcModule, proto: any) {
 
 type TestGrpcClient = grpcModule.Client&{
   // tslint:disable-next-line:no-any
-  unaryMethod: any;
+  UnaryMethod: any;
   // tslint:disable-next-line:no-any
   clientStreamMethod: any;
   // tslint:disable-next-line:no-any
@@ -148,7 +148,7 @@ const grpcClient = {
   unaryMethod: (client: TestGrpcClient, request: TestRequestResponse):
       Promise<TestRequestResponse> => {
         return new Promise((resolve, reject) => {
-          return client.unaryMethod(
+          return client.UnaryMethod(
               request,
               (err: grpcModule.ServiceError, response: TestRequestResponse) => {
                 if (err) {
