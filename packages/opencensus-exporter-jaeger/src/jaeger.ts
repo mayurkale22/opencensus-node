@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import {Exporter, ExporterBuffer, ExporterConfig, RootSpan, Span} from '@opencensus/core';
+import {Exporter, ExporterConfig, RootSpan, Span} from '@opencensus/core';
 import {logger, Logger} from '@opencensus/core';
 import * as os from 'os';
 
@@ -31,6 +31,8 @@ export interface JaegerTraceExporterOptions extends ExporterConfig {
   maxPacketSize?: number;
 }
 
+const DEFAULT_BUFFER_FLUSH_INTERVAL_MILLIS = 1000;
+const DEFAULT_BUFFER_SIZE = 1000;
 
 /** Format and sends span information to Jaeger */
 export class JaegerTraceExporter implements Exporter {
@@ -53,8 +55,6 @@ export class JaegerTraceExporter implements Exporter {
   /** Timeout control */
   /** Max time for a buffer can wait before being sent */
   private bufferTimeout: number;
-  /** Manage when the buffer timeout needs to be reseted */
-  private resetTimeout = false;
   /** Indicates when the buffer timeout is running */
   private timeoutSet = false;
 
@@ -62,8 +62,9 @@ export class JaegerTraceExporter implements Exporter {
   constructor(options: JaegerTraceExporterOptions) {
     const pjson = require('../../package.json');
     this.logger = options.logger || logger.logger();
-    this.bufferTimeout = options.bufferTimeout;
-    this.bufferSize = options.bufferSize;
+    this.bufferTimeout =
+        options.bufferTimeout || DEFAULT_BUFFER_FLUSH_INTERVAL_MILLIS;
+    this.bufferSize = options.bufferSize || DEFAULT_BUFFER_SIZE;
     this.sender = new UDPSender(options);
     const tags: Tag[] = options.tags || [];
 
