@@ -47,7 +47,7 @@ export class PrometheusStatsExporter implements StatsEventListener {
   private prefix: string;
   private port: number;
   private app = express();
-  private server: http.Server;
+  private server: http.Server|null = null;
   // Registry instance from Prometheus to keep the metrics
   private registry = new Registry();
 
@@ -100,7 +100,10 @@ export class PrometheusStatsExporter implements StatsEventListener {
     const labels: labelValues = {};
     columns.forEach((tagKey) => {
       if (tags.has(tagKey)) {
-        labels[tagKey.name] = tags.get(tagKey).value;
+        const tagValue = tags.get(tagKey);
+        if (tagValue) {
+          labels[tagKey.name] = tagValue.value;
+        }
       }
     });
     return labels;
@@ -111,7 +114,7 @@ export class PrometheusStatsExporter implements StatsEventListener {
    * @param view View will be used to register the metric
    * @param labels Object with label keys and values
    */
-  private registerMetric(view: View, tags: Map<TagKey, TagValue>): Metric {
+  private registerMetric(view: View, tags: Map<TagKey, TagValue>): Metric|null {
     const metricName = this.getPrometheusMetricName(view);
     /** Get metric if already registered */
     let metric = this.registry.getSingleMetric(metricName);
@@ -222,8 +225,12 @@ export class PrometheusStatsExporter implements StatsEventListener {
   private getBoundaries(view: View, tags: Map<TagKey, TagValue>): number[] {
     const tagValues =
         view.getColumns().map((tagKey) => (tags.get(tagKey) || null));
-    const data = view.getSnapshot(tagValues) as DistributionData;
-    return data.buckets;
+
+    if (tagValues) {
+      const data = view.getSnapshot(tagValues) as DistributionData;
+      return data.buckets;
+    }
+    return [];
   }
 
   /**

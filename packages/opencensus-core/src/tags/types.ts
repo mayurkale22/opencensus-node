@@ -23,5 +23,5 @@ export interface TagKey {
 /** TagValue represents a tag value */
 export interface TagValue {
   /** The value of a tag. */
-  readonly value: string;
+  readonly value: string|null;
 }

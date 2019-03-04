@@ -1,7 +1,8 @@
-# OpenCensus Prometheus Exporter for Node.js
+# OpenCensus Prometheus Stats Exporter
 [![Gitter chat][gitter-image]][gitter-url] ![Node Version][node-img] [![NPM Published Version][npm-img]][npm-url] ![dependencies Status][dependencies-status] ![devDependencies Status][devdependencies-status] ![Apache License][license-image]
 
-The OpenCensus Prometheus Exporter allows the user to send collected stats with [OpenCensus Core](https://github.com/census-instrumentation/opencensus-core) to Prometheus.
+The OpenCensus Prometheus Stats Exporter allows the user to send collected stats with [OpenCensus Core](https://github.com/census-instrumentation/opencensus-core) to Prometheus. [Prometheus](https://prometheus.io/) is an open-source systems monitoring and alerting
+toolkit originally built at [SoundCloud](https://soundcloud.com/).
 
 This package is still at an early stage of development, and is subject to change.
 
@@ -12,6 +13,9 @@ Install OpenCensus Prometheus Exporter with:
 npm install @opencensus/core
 npm install @opencensus/exporter-prometheus
 ```
+
+To use this exporter, you need to install, configure and start Prometheus first. Follow the
+instructions [here](https://prometheus.io/docs/introduction/first_steps/).
 
 ## Usage
 
