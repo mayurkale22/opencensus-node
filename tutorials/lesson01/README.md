@@ -47,8 +47,8 @@ doing busy work
 
 A trace is a [directed acyclic graph](https://en.wikipedia.org/wiki/Directed_acyclic_graph) of spans. A span represents a single operation in a trace. A span could be representative of an HTTP request, a remote procedure call (RPC), a database query, or even the path that a code takes in user code, etc. The more info on Span available at [here](https://opencensus.io/tracing/span/).
 
-Let's create a trace that consists of just a single span. To start a trace, you first need to get a reference to the `Tracer`.
-We can use a global instance returned by `tracing.start().tracer`. The object returned by start() may be used to create custom trace spans.
+Let's create a trace that consists of just a single span. To start a custom trace, you first need to get a reference to the `Tracer`.
+We can use a global instance returned by `tracing.start().tracer`.
 
 ```javascript
 const tracing = require('@opencensus/nodejs');
