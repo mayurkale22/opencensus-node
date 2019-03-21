@@ -14,12 +14,13 @@
  * limitations under the License.
  */
 
-import {CoreTracer, globalStats, Measurement, RootSpan, Span, SpanEventListener, SpanKind, StatsEventListener, TagKey, TagValue, View} from '@opencensus/core';
+import {CoreTracer, globalStats, Measurement, RootSpan, Span, SpanEventListener, SpanKind, StatsEventListener, TagKey, TagMap, TagValue, View} from '@opencensus/core';
 import {logger} from '@opencensus/core';
 import * as assert from 'assert';
 import * as grpcModule from 'grpc';
 import * as path from 'path';
-import {GRPC_TRACE_KEY, GrpcModule, GrpcPlugin, plugin, SendUnaryDataCallback} from '../src/';
+
+import {GRPC_TAGS_KEY, GRPC_TRACE_KEY, GrpcModule, GrpcPlugin, plugin, SendUnaryDataCallback} from '../src/';
 import * as clientStats from '../src/grpc-stats/client-stats';
 import * as serverStats from '../src/grpc-stats/server-stats';
 import {registerAllGrpcViews} from '../src/grpc-stats/stats-common';
@@ -586,7 +587,7 @@ describe('GrpcPlugin() ', function() {
     });
 
     it('should return valid span context', () => {
-      const buffer = new Buffer([
+      const buffer = Buffer.from([
         0x00, 0x00, 0xdf, 0x6a, 0x20, 0x38, 0xfa, 0x78, 0xc4, 0xcd,
         0x42, 0x20, 0x91, 0x26, 0x24, 0x9c, 0x31, 0xc7, 0x01, 0xc2,
         0xb7, 0xce, 0x7a, 0x57, 0x2a, 0x37, 0xc6, 0x02, 0x01
@@ -602,7 +603,7 @@ describe('GrpcPlugin() ', function() {
     });
 
     it('should return null for unsupported version', () => {
-      const buffer = new Buffer([
+      const buffer = Buffer.from([
         0x66, 0x64, 0xdf, 0x6a, 0x20, 0x38, 0xfa, 0x78, 0xc4, 0xcd,
         0x42, 0x20, 0x91, 0x26, 0x24, 0x9c, 0x31, 0xc7, 0x01, 0xc2,
         0xb7, 0xce, 0x7a, 0x57, 0x2a, 0x37, 0xc6, 0x02, 0x01
@@ -613,7 +614,7 @@ describe('GrpcPlugin() ', function() {
     });
 
     it('should return null when unexpected trace ID offset', () => {
-      const buffer = new Buffer([
+      const buffer = Buffer.from([
         0x00, 0x04, 0xdf, 0x6a, 0x20, 0x38, 0xfa, 0x78, 0xc4, 0xcd,
         0x42, 0x20, 0x91, 0x26, 0x24, 0x9c, 0x31, 0xc7, 0x01, 0xc2,
         0xb7, 0xce, 0x7a, 0x57, 0x2a, 0x37, 0xc6, 0x02, 0x01
@@ -624,7 +625,7 @@ describe('GrpcPlugin() ', function() {
     });
 
     it('should return null when unexpected span ID offset', () => {
-      const buffer = new Buffer([
+      const buffer = Buffer.from([
         0x00, 0x00, 0xdf, 0x6a, 0x20, 0x38, 0xfa, 0x78, 0xc4, 0xcd,
         0x42, 0x20, 0x91, 0x26, 0x24, 0x9c, 0x31, 0xc7, 0x03, 0xc2,
         0xb7, 0xce, 0x7a, 0x57, 0x2a, 0x37, 0xc6, 0x02, 0x01
@@ -635,7 +636,7 @@ describe('GrpcPlugin() ', function() {
     });
 
     it('should return null when unexpected options offset', () => {
-      const buffer = new Buffer([
+      const buffer = Buffer.from([
         0x00, 0x00, 0xdf, 0x6a, 0x20, 0x38, 0xfa, 0x78, 0xc4, 0xcd,
         0x42, 0x20, 0x91, 0x26, 0x24, 0x9c, 0x31, 0xc7, 0x03, 0xc2,
         0xb7, 0xce, 0x7a, 0x57, 0x2a, 0x37, 0xc6, 0x00, 0x01
@@ -647,10 +648,55 @@ describe('GrpcPlugin() ', function() {
 
     it('should return null when invalid input i.e. truncated', () => {
       const buffer =
-          new Buffer([0x00, 0x00, 0xdf, 0x6a, 0x20, 0x38, 0xfa, 0x78, 0xc4]);
+          Buffer.from([0x00, 0x00, 0xdf, 0x6a, 0x20, 0x38, 0xfa, 0x78, 0xc4]);
       metadata.set(GRPC_TRACE_KEY, buffer);
       const actualSpanContext = GrpcPlugin.getSpanContext(metadata);
       assert.deepEqual(actualSpanContext, null);
+    });
+  });
+
+  describe('setTagMap', () => {
+    const metadata = new grpcModule.Metadata();
+
+    const multipleTagMap = new TagMap();
+    multipleTagMap.set({name: 'k1'}, {value: 'v1'});
+    multipleTagMap.set({name: 'k2'}, {value: 'v2'});
+
+    it('should set TagMap', () => {
+      GrpcPlugin.setTagMap(metadata, multipleTagMap);
+      const actualTagMap = GrpcPlugin.getTagMap(metadata);
+      assert.equal(actualTagMap!.tags.size, 2);
+      assert.deepEqual(actualTagMap!.tags, multipleTagMap.tags);
+    });
+  });
+
+  describe('getTagMap', () => {
+    const metadata = new grpcModule.Metadata();
+    it('should return null when TagMap is not set', () => {
+      const actualTagMap = GrpcPlugin.getTagMap(metadata);
+      assert.equal(actualTagMap, null);
+    });
+
+    it('should return valid TagMap', () => {
+      const buffer = Buffer.from([
+        0x00, 0x00, 0x02, 0x6b, 0x31, 0x02, 0x76, 0x31, 0x00, 0x02, 0x6b, 0x32,
+        0x02, 0x76, 0x32
+      ]);
+      const expectedTags = new TagMap();
+      expectedTags.set({name: 'k1'}, {value: 'v1'});
+      expectedTags.set({name: 'k2'}, {value: 'v2'});
+      metadata.set(GRPC_TAGS_KEY, buffer);
+      const actualTagMap = GrpcPlugin.getTagMap(metadata);
+      assert.equal(actualTagMap!.tags.size, 2);
+      assert.deepEqual(actualTagMap!.tags, expectedTags.tags);
+    });
+
+    it('should return null when unexpected tagKey', () => {
+      const buffer =
+          Buffer.from([0x01, 0x00, 0x02, 0x6b, 0x31, 0x02, 0x76, 0x31]);
+      metadata.set(GRPC_TAGS_KEY, buffer);
+      const actualTagMap = GrpcPlugin.getTagMap(metadata);
+      assert.deepEqual(actualTagMap, null);
     });
   });
 });

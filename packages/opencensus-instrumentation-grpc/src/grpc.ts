@@ -14,14 +14,16 @@
  * limitations under the License.
  */
 
-import {BasePlugin, CanonicalCode, PluginInternalFiles, RootSpan, Span, SpanContext, SpanKind, TagMap, TagTtl, TraceOptions} from '@opencensus/core';
+import {BasePlugin, CanonicalCode, deserializeBinary, PluginInternalFiles, RootSpan, serializeBinary, Span, SpanContext, SpanKind, TagMap, TagTtl, TraceOptions} from '@opencensus/core';
 import {deserializeSpanContext, serializeSpanContext} from '@opencensus/propagation-binaryformat';
 import {EventEmitter} from 'events';
 import * as grpcTypes from 'grpc';
 import * as lodash from 'lodash';
 import * as shimmer from 'shimmer';
+
 import * as clientStats from './grpc-stats/client-stats';
 import * as serverStats from './grpc-stats/server-stats';
+
 const sizeof = require('object-sizeof');
 
 /** The metadata key under which span context is stored as a binary value. */
@@ -524,7 +526,7 @@ export class GrpcPlugin extends BasePlugin {
   }
 
   /**
-   * Set span context on a Metadata object if it exists.
+   * Sets a span context on a Metadata object if it exists.
    * @param metadata The Metadata object to which a span context should be
    *     added.
    * @param spanContext The span context.
@@ -534,6 +536,37 @@ export class GrpcPlugin extends BasePlugin {
     const serializedSpanContext = serializeSpanContext(spanContext);
     if (serializedSpanContext) {
       metadata.set(GRPC_TRACE_KEY, serializedSpanContext);
+    }
+  }
+
+  /**
+   * Returns a TagMap on a Metadata object if it exists and is well-formed, or
+   * null otherwise.
+   * @param metadata The Metadata object from which TagMap should be retrieved.
+   */
+  static getTagMap(metadata: grpcTypes.Metadata): TagMap|null {
+    const metadataValue = metadata.getMap()[GRPC_TAGS_KEY] as Buffer;
+    // Entry doesn't exist.
+    if (!metadataValue) return null;
+    try {
+      const tags = deserializeBinary(metadataValue);
+      // Value is malformed.
+      if (!tags) return null;
+      return tags;
+    } catch (ignore) {
+    }
+    return null;
+  }
+
+  /**
+   * Sets a TagMap context on a Metadata object if it exists.
+   * @param metadata The Metadata object to which a TagMap should be added.
+   * @param TagMap The TagMap.
+   */
+  static setTagMap(metadata: grpcTypes.Metadata, tagMap: TagMap): void {
+    const serializedTagMap = serializeBinary(tagMap);
+    if (serializedTagMap) {
+      metadata.set(GRPC_TAGS_KEY, serializedTagMap);
     }
   }
 
