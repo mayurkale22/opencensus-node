@@ -26,6 +26,10 @@ const sizeof = require('object-sizeof');
 
 /** The metadata key under which span context is stored as a binary value. */
 export const GRPC_TRACE_KEY = 'grpc-trace-bin';
+
+/** The metadata key under which TagMap is stored as a binary value. */
+export const GRPC_TAGS_KEY = 'grpc-tags-bin';
+
 const findIndex = lodash.findIndex;
 
 //
