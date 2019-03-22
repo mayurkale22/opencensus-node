@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import * as tagCtxSerializer from '@opencensus/core';
+import * as tagger from '@opencensus/core';
 import {BasePlugin, CanonicalCode, PluginInternalFiles, RootSpan, Span, SpanContext, SpanKind, TagMap, TagTtl, TraceOptions} from '@opencensus/core';
 import {deserializeSpanContext, serializeSpanContext} from '@opencensus/propagation-binaryformat';
 import {EventEmitter} from 'events';
@@ -236,7 +236,7 @@ export class GrpcPlugin extends BasePlugin {
       // record stats
       let parentTagCtx = GrpcPlugin.getTagContext(call.metadata);
       if (!parentTagCtx) {
-        parentTagCtx = tagCtxSerializer.EMPTY_TAG_MAP;
+        parentTagCtx = new TagMap();
       }
       parentTagCtx.set(
           serverStats.GRPC_SERVER_METHOD, {value: rootSpan.name},
@@ -358,11 +358,14 @@ export class GrpcPlugin extends BasePlugin {
       plugin: GrpcPlugin) {
     const startTime = Date.now();
     const originalArgs = args;
+
     /**
      * Patches a callback so that the current span for this trace is also ended
      * when the callback is invoked.
      */
-    function patchedCallback(span: Span, callback: SendUnaryDataCallback) {
+    function patchedCallback(
+        span: Span, callback: SendUnaryDataCallback,
+        metadata: grpcTypes.Metadata) {
       // tslint:disable-next-line:no-any
       const wrappedFn = (err: grpcTypes.ServiceError, res: any) => {
         if (err) {
@@ -383,13 +386,17 @@ export class GrpcPlugin extends BasePlugin {
               grpcTypes.status.OK.toString());
         }
 
-        // record stats
-        const tags = new TagMap();
-        tags.set(
+        // record stats: new RPCs on client-side inherit the tag context from
+        // the current Context.
+        const parentTagCtx = tagger.getCurrentTagContext();
+        if (parentTagCtx.tags.size > 0) {
+          GrpcPlugin.setTagContext(metadata, parentTagCtx);
+        }
+        parentTagCtx.set(
             clientStats.GRPC_CLIENT_METHOD, {value: span.name},
             UNLIMITED_PROPAGATION_MD);
         GrpcPlugin.recordStats(
-            span.kind, tags, originalArgs, res, Date.now() - startTime);
+            span.kind, parentTagCtx, originalArgs, res, Date.now() - startTime);
 
         span.end();
         callback(err, res);
@@ -401,7 +408,7 @@ export class GrpcPlugin extends BasePlugin {
       if (!span) {
         return original.apply(self, args);
       }
-
+      const metadata = this.getMetadata(original, args);
       // if unary or clientStream
       if (!original.responseStream) {
         const callbackFuncIndex = findIndex(args, (arg) => {
@@ -409,11 +416,10 @@ export class GrpcPlugin extends BasePlugin {
         });
         if (callbackFuncIndex !== -1) {
           args[callbackFuncIndex] =
-              patchedCallback(span, args[callbackFuncIndex]);
+              patchedCallback(span, args[callbackFuncIndex], metadata);
         }
       }
 
-      const metadata = this.getMetadata(original, args);
       GrpcPlugin.setSpanContext(metadata, span.spanContext);
 
       span.addAttribute(GrpcPlugin.ATTRIBUTE_GRPC_METHOD, original.path);
@@ -551,7 +557,7 @@ export class GrpcPlugin extends BasePlugin {
     // Entry doesn't exist.
     if (!metadataValue) return null;
     try {
-      const tags = tagCtxSerializer.deserializeBinary(metadataValue);
+      const tags = tagger.deserializeBinary(metadataValue);
       // Value is malformed.
       if (!tags) return null;
       return tags;
@@ -566,7 +572,7 @@ export class GrpcPlugin extends BasePlugin {
    * @param TagMap The TagMap.
    */
   static setTagContext(metadata: grpcTypes.Metadata, tagMap: TagMap): void {
-    const serializedTagMap = tagCtxSerializer.serializeBinary(tagMap);
+    const serializedTagMap = tagger.serializeBinary(tagMap);
     if (serializedTagMap) {
       metadata.set(GRPC_TAGS_KEY, serializedTagMap);
     }
