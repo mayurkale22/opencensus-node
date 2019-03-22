@@ -14,16 +14,15 @@
  * limitations under the License.
  */
 
-import {BasePlugin, CanonicalCode, deserializeBinary, PluginInternalFiles, RootSpan, serializeBinary, Span, SpanContext, SpanKind, TagMap, TagTtl, TraceOptions} from '@opencensus/core';
+import * as tagCtxSerializer from '@opencensus/core';
+import {BasePlugin, CanonicalCode, PluginInternalFiles, RootSpan, Span, SpanContext, SpanKind, TagMap, TagTtl, TraceOptions} from '@opencensus/core';
 import {deserializeSpanContext, serializeSpanContext} from '@opencensus/propagation-binaryformat';
 import {EventEmitter} from 'events';
 import * as grpcTypes from 'grpc';
 import * as lodash from 'lodash';
 import * as shimmer from 'shimmer';
-
 import * as clientStats from './grpc-stats/client-stats';
 import * as serverStats from './grpc-stats/server-stats';
-
 const sizeof = require('object-sizeof');
 
 /** The metadata key under which span context is stored as a binary value. */
@@ -235,13 +234,16 @@ export class GrpcPlugin extends BasePlugin {
       }
 
       // record stats
-      const tags = new TagMap();
-      tags.set(
+      let parentTagCtx = GrpcPlugin.getTagContext(call.metadata);
+      if (!parentTagCtx) {
+        parentTagCtx = tagCtxSerializer.EMPTY_TAG_MAP;
+      }
+      parentTagCtx.set(
           serverStats.GRPC_SERVER_METHOD, {value: rootSpan.name},
           UNLIMITED_PROPAGATION_MD);
       const req = call.hasOwnProperty('request') ? call.request : {};
       GrpcPlugin.recordStats(
-          rootSpan.kind, tags, value, req, Date.now() - startTime);
+          rootSpan.kind, parentTagCtx, value, req, Date.now() - startTime);
 
       rootSpan.end();
       return callback(err, value, trailer, flags);
@@ -544,12 +546,12 @@ export class GrpcPlugin extends BasePlugin {
    * null otherwise.
    * @param metadata The Metadata object from which TagMap should be retrieved.
    */
-  static getTagMap(metadata: grpcTypes.Metadata): TagMap|null {
+  static getTagContext(metadata: grpcTypes.Metadata): TagMap|null {
     const metadataValue = metadata.getMap()[GRPC_TAGS_KEY] as Buffer;
     // Entry doesn't exist.
     if (!metadataValue) return null;
     try {
-      const tags = deserializeBinary(metadataValue);
+      const tags = tagCtxSerializer.deserializeBinary(metadataValue);
       // Value is malformed.
       if (!tags) return null;
       return tags;
@@ -563,8 +565,8 @@ export class GrpcPlugin extends BasePlugin {
    * @param metadata The Metadata object to which a TagMap should be added.
    * @param TagMap The TagMap.
    */
-  static setTagMap(metadata: grpcTypes.Metadata, tagMap: TagMap): void {
-    const serializedTagMap = serializeBinary(tagMap);
+  static setTagContext(metadata: grpcTypes.Metadata, tagMap: TagMap): void {
+    const serializedTagMap = tagCtxSerializer.serializeBinary(tagMap);
     if (serializedTagMap) {
       metadata.set(GRPC_TAGS_KEY, serializedTagMap);
     }

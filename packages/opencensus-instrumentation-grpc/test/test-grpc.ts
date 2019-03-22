@@ -655,7 +655,7 @@ describe('GrpcPlugin() ', function() {
     });
   });
 
-  describe('setTagMap', () => {
+  describe('setTagContext', () => {
     const metadata = new grpcModule.Metadata();
 
     const multipleTagMap = new TagMap();
@@ -663,17 +663,17 @@ describe('GrpcPlugin() ', function() {
     multipleTagMap.set({name: 'k2'}, {value: 'v2'});
 
     it('should set TagMap', () => {
-      GrpcPlugin.setTagMap(metadata, multipleTagMap);
-      const actualTagMap = GrpcPlugin.getTagMap(metadata);
+      GrpcPlugin.setTagContext(metadata, multipleTagMap);
+      const actualTagMap = GrpcPlugin.getTagContext(metadata);
       assert.equal(actualTagMap!.tags.size, 2);
       assert.deepEqual(actualTagMap!.tags, multipleTagMap.tags);
     });
   });
 
-  describe('getTagMap', () => {
+  describe('getTagContext', () => {
     const metadata = new grpcModule.Metadata();
     it('should return null when TagMap is not set', () => {
-      const actualTagMap = GrpcPlugin.getTagMap(metadata);
+      const actualTagMap = GrpcPlugin.getTagContext(metadata);
       assert.equal(actualTagMap, null);
     });
 
@@ -686,7 +686,7 @@ describe('GrpcPlugin() ', function() {
       expectedTags.set({name: 'k1'}, {value: 'v1'});
       expectedTags.set({name: 'k2'}, {value: 'v2'});
       metadata.set(GRPC_TAGS_KEY, buffer);
-      const actualTagMap = GrpcPlugin.getTagMap(metadata);
+      const actualTagMap = GrpcPlugin.getTagContext(metadata);
       assert.equal(actualTagMap!.tags.size, 2);
       assert.deepEqual(actualTagMap!.tags, expectedTags.tags);
     });
@@ -695,7 +695,7 @@ describe('GrpcPlugin() ', function() {
       const buffer =
           Buffer.from([0x01, 0x00, 0x02, 0x6b, 0x31, 0x02, 0x76, 0x31]);
       metadata.set(GRPC_TAGS_KEY, buffer);
-      const actualTagMap = GrpcPlugin.getTagMap(metadata);
+      const actualTagMap = GrpcPlugin.getTagContext(metadata);
       assert.deepEqual(actualTagMap, null);
     });
   });
