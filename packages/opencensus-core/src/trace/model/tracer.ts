@@ -17,7 +17,6 @@
 import * as uuid from 'uuid';
 import * as logger from '../../common/console-logger';
 import * as loggerTypes from '../../common/types';
-import * as cls from '../../internal/cls';
 import * as configTypes from '../config/types';
 import {TraceParams} from '../config/types';
 import {Propagation} from '../propagation/types';
@@ -26,6 +25,8 @@ import * as samplerTypes from '../sampler/types';
 import {NoRecordRootSpan} from './no-record/no-record-root-span';
 import {RootSpan} from './root-span';
 import * as types from './types';
+import { cls } from "../../internal/cls/cls-manager";
+
 
 /**
  * This class represent a tracer.
@@ -33,8 +34,6 @@ import * as types from './types';
 export class CoreTracer implements types.Tracer {
   /** Indicates if the tracer is active */
   private activeLocal: boolean;
-  /** Manage context automatic propagation */
-  private contextManager: cls.Namespace;
   /** A configuration for starting the tracer */
   private config: configTypes.TracerConfig;
   /** A list of end span event listeners */
@@ -51,21 +50,13 @@ export class CoreTracer implements types.Tracer {
   /** Constructs a new TraceImpl instance. */
   constructor() {
     this.activeLocal = false;
-    this.contextManager = cls.createNamespace();
     this.clearCurrentTrace();
     this.activeTraceParams = {};
   }
 
   /** Gets the current root span. */
   get currentRootSpan(): types.RootSpan {
-    return this.contextManager.get('rootspan');
-  }
-
-  /** Sets the current root span. */
-  set currentRootSpan(root: types.RootSpan) {
-    if (this.contextManager.active) {
-      this.contextManager.set('rootspan', root);
-    }
+    return cls.getContext();
   }
 
   /** A propagation instance */
@@ -120,43 +111,44 @@ export class CoreTracer implements types.Tracer {
    */
   startRootSpan<T>(
       options: types.TraceOptions, fn: (root: types.RootSpan) => T): T {
-    return this.contextManager.runAndReturn((root) => {
-      let traceId;
-      if (options && options.spanContext && options.spanContext.traceId) {
-        traceId = options.spanContext.traceId;
-      } else {
-        // New root span.
-        traceId = uuid.v4().split('-').join('');
-      }
-      const name = options && options.name ? options.name : 'span';
-      const kind =
-          options && options.kind ? options.kind : types.SpanKind.UNSPECIFIED;
+    // Don't create a root span if we are already in a root span
+    let traceId;
+    if (options && options.spanContext && options.spanContext.traceId) {
+      traceId = options.spanContext.traceId;
+    } else {
+      // New root span.
+      traceId = uuid.v4().split('-').join('');
+    }
+    const name = options && options.name ? options.name : 'span';
+    const kind =
+        options && options.kind ? options.kind : types.SpanKind.UNSPECIFIED;
 
-      let parentSpanId = '';
-      let traceState;
-      if (options && options.spanContext) {
-        // New child span.
-        parentSpanId = options.spanContext.spanId || '';
-        traceState = options.spanContext.traceState;
-      }
+    let parentSpanId = '';
+    let traceState;
+    if (options && options.spanContext) {
+      // New child span.
+      parentSpanId = options.spanContext.spanId || '';
+      traceState = options.spanContext.traceState;
+    }
 
-      if (this.active) {
-        const sampleDecision = this.makeSamplingDecision(options, traceId);
-        if (sampleDecision) {
-          const rootSpan =
-              new RootSpan(this, name, kind, traceId, parentSpanId, traceState);
-          this.currentRootSpan = rootSpan;
-          rootSpan.start();
-          return fn(rootSpan);
-        }
-      } else {
-        this.logger.debug('Tracer is inactive, can\'t start new RootSpan');
+    let rootSpan: types.RootSpan;
+    if (this.active) {
+      const sampleDecision = this.makeSamplingDecision(options, traceId);
+      if (sampleDecision) {
+        rootSpan =
+            new RootSpan(this, name, kind, traceId, parentSpanId, traceState);
       }
-      const noRecordRootSpan = new NoRecordRootSpan(
+    } else {
+      this.logger.debug('Tracer is inactive, can\'t start new RootSpan');
+    }
+    if (!rootSpan) {
+      rootSpan = new NoRecordRootSpan(
           this, name, kind, traceId, parentSpanId, traceState);
-      this.currentRootSpan = noRecordRootSpan;
-      return fn(noRecordRootSpan);
-    });
+    }
+    rootSpan.start();
+    return cls.runWithContext(() => {
+      return fn(rootSpan);
+    }, rootSpan);
   }
 
   /** Notifies listeners of the span start. */
@@ -257,8 +249,7 @@ export class CoreTracer implements types.Tracer {
     if (!this.active) {
       return fn;
     }
-    const namespace = this.contextManager;
-    return namespace.bind<T>(fn);
+    return cls.bindWithCurrentContext(fn);
   }
 
   /**
@@ -272,8 +263,7 @@ export class CoreTracer implements types.Tracer {
     if (!this.active) {
       return;
     }
-    const namespace = this.contextManager;
-    namespace.bindEmitter(emitter);
+    return cls.patchEmitterToPropagateContext(emitter);
   }
 
   /** Determine whether to sample request or not. */
