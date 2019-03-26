@@ -16,17 +16,16 @@
 
 /** Example showing how to directly create a child span and add annotations. */
 const tracing = require('@opencensus/nodejs');
-const { ZipkinTraceExporter } = require('@opencensus/exporter-zipkin');
+const {MessageEventType}= require('@opencensus/core');
+const { StackdriverTraceExporter } = require('@opencensus/exporter-stackdriver');
+const uuid = require('uuid');
 
 // 1. Get the global singleton Tracer object
 // 2. Configure 100% sample rate, otherwise, few traces will be sampled.
-const tracer = tracing.start({ samplingRate: 1 }).tracer;
+const tracer = tracing.start({ samplingRate: 1, logLevel:2, logger: console }).tracer;
 
 // 3. Configure exporter to export traces to Zipkin.
-tracer.registerSpanEventListener(new ZipkinTraceExporter({
-  url: 'http://localhost:9411/api/v2/spans',
-  serviceName: 'node.js-quickstart'
-}));
+tracer.registerSpanEventListener(new StackdriverTraceExporter({projectId: "opencensus-java-stats-demo-app"}));
 
 function main () {
   // 4. Create a span. A span must be closed.
@@ -39,6 +38,7 @@ function main () {
       doWork();
     }
 
+    rootSpan.addMessageEvent(MessageEventType.SENT, 1);
     // Be sure to call rootSpan.end().
     rootSpan.end();
   });
@@ -58,7 +58,7 @@ function doWork () {
   for (let i = 0; i <= 40000000; i++) {} // short delay
 
   // 6. Annotate our span to capture metadata about our operation
-  span.addAnnotation('invoking doWork');
+  span.addAnnotation('invoking doWork', {});
   for (let i = 0; i <= 20000000; i++) {} // short delay
 
   span.end();
