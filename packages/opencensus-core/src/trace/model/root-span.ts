@@ -17,6 +17,7 @@
 import * as logger from '../../common/console-logger';
 import { Span } from './span';
 import * as types from './types';
+import * as oTelTypes from '@opentelemetry/types';
 
 /** Defines a root span */
 export class RootSpan extends Span {
@@ -48,9 +49,10 @@ export class RootSpan extends Span {
     kind: types.SpanKind,
     traceId: string,
     parentSpanId: string,
-    traceState?: types.TraceState
+    oTelSpan: oTelTypes.Span,
+    traceState?: types.TraceState,
   ) {
-    super(tracer);
+    super(tracer, oTelSpan);
     this.tracer = tracer;
     this.traceIdLocal = traceId;
     this.name = name;

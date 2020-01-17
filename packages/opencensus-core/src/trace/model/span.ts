@@ -21,6 +21,7 @@ import * as configTypes from '../config/types';
 
 import { NoRecordSpan } from './no-record/no-record-span';
 import * as types from './types';
+import * as oTelTypes from '@opentelemetry/types';
 
 const STATUS_OK = {
   code: types.CanonicalCode.OK,
@@ -74,12 +75,14 @@ export class Span implements types.Span {
   droppedAnnotationsCount = 0;
   /** The number of dropped message events. */
   droppedMessageEventsCount = 0;
+  oTelSpan: oTelTypes.Span;
 
   /** Constructs a new Span instance. */
-  constructor(tracer: types.TracerBase, parent?: Span) {
+  constructor(tracer: types.TracerBase, oTelSpan: oTelTypes.Span, parent?: Span) {
     this.tracer = tracer;
+    this.oTelSpan = oTelSpan;
     this.className = this.constructor.name;
-    this.id = randomSpanId();
+    this.id = oTelSpan.context().spanId;
     this.spansLocal = [];
     if (parent) {
       this.root = parent.root;
@@ -98,12 +101,12 @@ export class Span implements types.Span {
 
   /** Gets the trace ID. */
   get traceId(): string {
-    return this.root.traceId;
+    return this.oTelSpan.context().traceId;
   }
 
   /** Gets the trace state */
   get traceState(): types.TraceState | undefined {
-    return this.root.traceState;
+    return this.oTelSpan.context().traceState?.serialize();
   }
 
   /**
@@ -202,23 +205,7 @@ export class Span implements types.Span {
    *     it has to be JSON.stringify-able, cannot contain circular dependencies.
    */
   addAttribute(key: string, value: string | number | boolean | object) {
-    if (this.attributes[key]) {
-      delete this.attributes[key];
-    }
-
-    if (
-      Object.keys(this.attributes).length >=
-      this.activeTraceParams.numberOfAttributesPerSpan!
-    ) {
-      this.droppedAttributesCount++;
-      const attributeKeyToDelete = Object.keys(this.attributes).shift();
-      if (attributeKeyToDelete) {
-        delete this.attributes[attributeKeyToDelete];
-      }
-    }
-    const serializedValue =
-      typeof value === 'object' ? JSON.stringify(value) : value;
-    this.attributes[key] = serializedValue;
+    this.oTelSpan.setAttribute(key, value);
   }
 
   /**
@@ -232,14 +219,7 @@ export class Span implements types.Span {
     attributes: types.Attributes = {},
     timestamp = Date.now()
   ) {
-    if (
-      this.annotations.length >=
-      this.activeTraceParams.numberOfAnnontationEventsPerSpan!
-    ) {
-      this.annotations.shift();
-      this.droppedAnnotationsCount++;
-    }
-    this.annotations.push({ description, attributes, timestamp });
+    this.oTelSpan.addEvent(description, attributes, timestamp);
   }
 
   /**
@@ -255,6 +235,7 @@ export class Span implements types.Span {
     type: types.LinkType,
     attributes: types.Attributes = {}
   ) {
+    // decide what to do here?
     if (this.links.length >= this.activeTraceParams.numberOfLinksPerSpan!) {
       this.links.shift();
       this.droppedLinksCount++;
@@ -279,6 +260,7 @@ export class Span implements types.Span {
     uncompressedSize?: number,
     compressedSize?: number
   ) {
+    // decide what to do here?
     if (
       this.messageEvents.length >=
       this.activeTraceParams.numberOfMessageEventsPerSpan!
@@ -302,7 +284,7 @@ export class Span implements types.Span {
    * @param message optional A developer-facing error message.
    */
   setStatus(code: types.CanonicalCode, message?: string) {
-    this.status = { code, message };
+    this.oTelSpan.setStatus({code, message});
   }
 
   /** Starts the span. */
@@ -337,6 +319,7 @@ export class Span implements types.Span {
 
   /** Ends the span and all of its children, recursively. */
   end(): void {
+    this.oTelSpan.end();
     if (this.ended) {
       this.logger.debug(
         'calling %s.end() on already ended %s %o',
