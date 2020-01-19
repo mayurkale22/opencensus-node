@@ -92,6 +92,7 @@ class AsyncHooksNamespace implements CLSNamespace {
     const contextWrapper = function(this: {}) {
       const oldContext = current;
       current = boundContext;
+      // tslint:disable-next-line:no-any
       const res = cb.apply(this, arguments as any) as T;
       current = oldContext;
       return res;

@@ -106,8 +106,10 @@ export class CoreTracerBase implements types.TracerBase {
         config.samplingRate || DEFAULT_SAMPLING_RATE
       ),
     });
-    const exporter = new JaegerExporter({serviceName: 'bridge'});;
-    this.oTelemetryTracer.addSpanProcessor(new oTelTracing.SimpleSpanProcessor(exporter));
+    const exporter = new JaegerExporter({ serviceName: 'bridge' });
+    this.oTelemetryTracer.addSpanProcessor(
+      new oTelTracing.SimpleSpanProcessor(exporter)
+    );
 
     return this;
   }
@@ -155,7 +157,7 @@ export class CoreTracerBase implements types.TracerBase {
       const defaultAttributes = this.config && this.config.defaultAttributes;
       const oTelSpan = this.oTelemetryTracer.startSpan(name, {
         kind: types.SPAN_KIND_MAPPING[kind],
-        attributes: defaultAttributes
+        attributes: defaultAttributes,
       });
       const rootSpan = new RootSpan(
         this,
