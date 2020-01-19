@@ -72,6 +72,7 @@
     "@opentelemetry/core": "^0.3.2",
     "@opentelemetry/node": "^0.3.2",
     "@opentelemetry/tracing": "^0.3.2",
+    "@opentelemetry/exporter-jaeger": "^0.3.2",
     "continuation-local-storage": "^3.2.1",
     "log-driver": "^1.2.7",
     "semver": "^6.0.0",

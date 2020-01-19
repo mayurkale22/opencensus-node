@@ -33,13 +33,7 @@ import { RootSpan } from './root-span';
 import * as types from './types';
 import * as oTelTracing from '@opentelemetry/tracing';
 import * as oTelCore from '@opentelemetry/core';
-import * as oTelTypes from '@opentelemetry/types';
-
-const SPAN_KIND_MAPPING = {
-  [types.SpanKind.CLIENT]: oTelTypes.SpanKind.CLIENT,
-  [types.SpanKind.SERVER]: oTelTypes.SpanKind.SERVER,
-  [types.SpanKind.UNSPECIFIED]: oTelTypes.SpanKind.INTERNAL,
-};
+import { JaegerExporter } from '@opentelemetry/exporter-jaeger';
 
 /**
  * This class represents a tracer.
@@ -51,8 +45,6 @@ export class CoreTracerBase implements types.TracerBase {
   private config!: configTypes.TracerConfig;
   /** A list of end span event listeners */
   private eventListenersLocal: types.SpanEventListener[] = [];
-  /** Bit to represent whether trace is sampled or not. */
-  private readonly IS_SAMPLED = 0x1;
   /** A sampler used to make sample decisions */
   sampler!: samplerTypes.Sampler;
   /** An object to log information */
@@ -114,6 +106,8 @@ export class CoreTracerBase implements types.TracerBase {
         config.samplingRate || DEFAULT_SAMPLING_RATE
       ),
     });
+    const exporter = new JaegerExporter({serviceName: 'bridge'});;
+    this.oTelemetryTracer.addSpanProcessor(new oTelTracing.SimpleSpanProcessor(exporter));
 
     return this;
   }
@@ -160,26 +154,21 @@ export class CoreTracerBase implements types.TracerBase {
     if (this.active) {
       const defaultAttributes = this.config && this.config.defaultAttributes;
       const oTelSpan = this.oTelemetryTracer.startSpan(name, {
-        kind: SPAN_KIND_MAPPING[kind],
-        attributes: defaultAttributes,
+        kind: types.SPAN_KIND_MAPPING[kind],
+        attributes: defaultAttributes
       });
-
-      if (oTelSpan instanceof oTelCore.NoRecordingSpan) {
-        // Sampling is off
-        this.logger.debug('Sampling is off, starting new no record root span');
-      } {
-        const rootSpan = new RootSpan(
-          this,
-          name,
-          kind,
-          traceId,
-          parentSpanId,
-          oTelSpan,
-          traceState
-        );
-        rootSpan.start();
-        return fn(rootSpan);
-      }
+      const rootSpan = new RootSpan(
+        this,
+        name,
+        kind,
+        traceId,
+        parentSpanId,
+        this.oTelemetryTracer,
+        oTelSpan,
+        traceState
+      );
+      rootSpan.start();
+      return fn(rootSpan);
     } else {
       // Tracer is inactive
       this.logger.debug('Tracer is inactive, starting new no record root span');

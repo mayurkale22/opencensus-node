@@ -18,6 +18,7 @@ import * as loggerTypes from '../../common/types';
 import * as configTypes from '../config/types';
 import { Propagation } from '../propagation/types';
 import * as samplerTypes from '../sampler/types';
+import * as oTelTypes from '@opentelemetry/types';
 
 /** Default type for functions */
 // tslint:disable:no-any
@@ -567,3 +568,9 @@ export interface Tracer extends TracerBase {
    */
   wrapEmitter(emitter: NodeJS.EventEmitter): void;
 }
+
+export const SPAN_KIND_MAPPING = {
+  [SpanKind.CLIENT]: oTelTypes.SpanKind.CLIENT,
+  [SpanKind.SERVER]: oTelTypes.SpanKind.SERVER,
+  [SpanKind.UNSPECIFIED]: oTelTypes.SpanKind.INTERNAL,
+};

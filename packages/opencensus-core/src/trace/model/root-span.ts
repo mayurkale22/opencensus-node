@@ -49,10 +49,11 @@ export class RootSpan extends Span {
     kind: types.SpanKind,
     traceId: string,
     parentSpanId: string,
+    oTelTracer: oTelTypes.Tracer,
     oTelSpan: oTelTypes.Span,
-    traceState?: types.TraceState,
+    traceState?: types.TraceState
   ) {
-    super(tracer, oTelSpan);
+    super(tracer, oTelTracer, oTelSpan);
     this.tracer = tracer;
     this.traceIdLocal = traceId;
     this.name = name;

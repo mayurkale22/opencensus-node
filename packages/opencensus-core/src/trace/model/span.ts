@@ -16,7 +16,6 @@
 import { noopLogger } from '../../common/noop-logger';
 import { Logger } from '../../common/types';
 import { Clock } from '../../internal/clock';
-import { randomSpanId } from '../../internal/util';
 import * as configTypes from '../config/types';
 
 import { NoRecordSpan } from './no-record/no-record-span';
@@ -75,14 +74,21 @@ export class Span implements types.Span {
   droppedAnnotationsCount = 0;
   /** The number of dropped message events. */
   droppedMessageEventsCount = 0;
+  oTelTracer: oTelTypes.Tracer;
   oTelSpan: oTelTypes.Span;
 
   /** Constructs a new Span instance. */
-  constructor(tracer: types.TracerBase, oTelSpan: oTelTypes.Span, parent?: Span) {
+  constructor(
+    tracer: types.TracerBase,
+    oTelTracer: oTelTypes.Tracer,
+    oTelSpan: oTelTypes.Span,
+    parent?: Span
+  ) {
     this.tracer = tracer;
+    this.oTelTracer = oTelTracer;
     this.oTelSpan = oTelSpan;
     this.className = this.constructor.name;
-    this.id = oTelSpan.context().spanId;
+    this.id = this.oTelSpan.context().spanId;
     this.spansLocal = [];
     if (parent) {
       this.root = parent.root;
@@ -106,7 +112,11 @@ export class Span implements types.Span {
 
   /** Gets the trace state */
   get traceState(): types.TraceState | undefined {
-    return this.oTelSpan.context().traceState?.serialize();
+    const traceState = this.oTelSpan.context().traceState;
+    if (traceState) {
+      return traceState.serialize();
+    }
+    return undefined;
   }
 
   /**
@@ -284,7 +294,7 @@ export class Span implements types.Span {
    * @param message optional A developer-facing error message.
    */
   setStatus(code: types.CanonicalCode, message?: string) {
-    this.oTelSpan.setStatus({code, message});
+    this.oTelSpan.setStatus({ code, message });
   }
 
   /** Starts the span. */
@@ -386,7 +396,16 @@ export class Span implements types.Span {
       return new NoRecordSpan(this.tracer);
     }
 
-    const child = new Span(this.tracer, this);
+    let spanName = 'span';
+    if (options && options.name) spanName = options.name;
+    let spanKind = types.SpanKind.UNSPECIFIED;
+    if (options && options.kind) spanKind = options.kind;
+
+    const childSpan = this.oTelTracer.startSpan(spanName, {
+      kind: types.SPAN_KIND_MAPPING[spanKind]
+    });
+
+    const child = new Span(this.tracer, this.oTelTracer, childSpan, this);
     if (options && options.name) child.name = options.name;
     if (options && options.kind) child.kind = options.kind;
 
