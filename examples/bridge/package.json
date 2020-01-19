@@ -5,6 +5,6 @@
     "start": "node index.js"
   },
   "dependencies": {
-    "@opencensus/nodejs": "^0.0.19"
+    "@opencensus/nodejs": "file:../../packages/opencensus-nodejs"
   }
 }

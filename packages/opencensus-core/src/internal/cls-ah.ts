@@ -24,7 +24,7 @@ import {
   Namespace as CLSNamespace,
 } from 'continuation-local-storage';
 import { EventEmitter } from 'events';
-import * as shimmer from 'shimmer';
+//import * as shimmer from 'shimmer';
 
 const WRAPPED = Symbol('context_wrapped');
 /** A map of AsyncResource IDs to Context objects. */
@@ -92,7 +92,7 @@ class AsyncHooksNamespace implements CLSNamespace {
     const contextWrapper = function(this: {}) {
       const oldContext = current;
       current = boundContext;
-      const res = cb.apply(this, arguments) as T;
+      const res = cb.apply(this, arguments as any) as T;
       current = oldContext;
       return res;
     };
@@ -113,15 +113,15 @@ class AsyncHooksNamespace implements CLSNamespace {
   // event handler reduces the number of situations in which userspace queuing
   // will cause us to lose context.
   bindEmitter(ee: NodeJS.EventEmitter): void {
-    const ns = this;
+    //const ns = this;
     EVENT_EMITTER_METHODS.forEach(method => {
-      if (ee[method]) {
-        shimmer.wrap(ee, method, oldMethod => {
-          return function(this: {}, event: string, cb: Func<void>) {
-            return oldMethod.call(this, event, ns.bind(cb));
-          };
-        });
-      }
+      // if (ee[method]) {
+      //   shimmer.wrap(ee, method, oldMethod => {
+      //     return function(this: {}, event: string, cb: Func<void>) {
+      //       return oldMethod.call(this, event, ns.bind(cb));
+      //     };
+      //   });
+      // }
     });
   }
 }

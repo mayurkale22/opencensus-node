@@ -54,7 +54,7 @@
     "typescript": "~3.2.0"
   },
   "dependencies": {
-    "@opencensus/core": "^0.0.19",
+    "@opencensus/core": "file:../opencensus-core",
     "@opencensus/instrumentation-all": "^0.0.19",
     "@opencensus/nodejs-base": "^0.0.19"
   }
