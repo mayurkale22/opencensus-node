@@ -569,6 +569,7 @@ export interface Tracer extends TracerBase {
   wrapEmitter(emitter: NodeJS.EventEmitter): void;
 }
 
+/** Translate OpenCensus SpanKind to OpenTelemetry SpanKind format */
 export const SPAN_KIND_MAPPING = {
   [SpanKind.CLIENT]: oTelTypes.SpanKind.CLIENT,
   [SpanKind.SERVER]: oTelTypes.SpanKind.SERVER,
