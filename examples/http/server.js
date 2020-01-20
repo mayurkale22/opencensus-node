@@ -15,7 +15,7 @@
  */
 
 const tracing = require('@opencensus/nodejs');
-const { ZipkinTraceExporter } = require('@opencensus/exporter-zipkin');
+const { JaegerTraceExporter } = require('@opencensus/exporter-jaeger');
 const { TraceContextFormat } = require('@opencensus/propagation-tracecontext');
 
 /**
@@ -62,12 +62,11 @@ function handleRequest (request, response) {
 
 function setupTracerAndExporters () {
   const zipkinOptions = {
-    url: 'http://localhost:9411/api/v2/spans',
     serviceName: 'opencensus_tutorial'
   };
 
   // Creates Zipkin exporter
-  const exporter = new ZipkinTraceExporter(zipkinOptions);
+  const exporter = new JaegerTraceExporter(zipkinOptions);
 
   // Starts tracing and set sampling rate, exporter and propagation
   const tracer = tracing.start({

@@ -15,7 +15,6 @@
  */
 
 const tracing = require('@opencensus/nodejs');
-const { JaegerTraceExporter } = require('@opencensus/exporter-jaeger');
 const { TraceContextFormat } = require('@opencensus/propagation-tracecontext');
 
 /**
@@ -50,16 +49,8 @@ function makeRequest () {
 }
 
 function setupTracerAndExporters () {
-  const zipkinOptions = {
-    serviceName: 'opencensus_tutorial'
-  };
-
-  // Creates Zipkin exporter
-  const exporter = new JaegerTraceExporter(zipkinOptions);
-
   // Starts tracing and set sampling rate, exporter and propagation
   const tracer = tracing.start({
-    exporter,
     samplingRate: 1, // For demo purposes, always sample
     propagation: new TraceContextFormat(),
     logLevel: 1 // show errors, if any

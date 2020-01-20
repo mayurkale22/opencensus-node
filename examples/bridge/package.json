@@ -5,6 +5,7 @@
     "start": "node index.js"
   },
   "dependencies": {
-    "@opencensus/nodejs": "file:../../packages/opencensus-nodejs"
+    "@opencensus/nodejs": "file:../../packages/opencensus-nodejs",
+    "@opencensus/propagation-tracecontext": "0.0.19"
   }
 }

@@ -15,7 +15,6 @@
  */
 
 const tracing = require('@opencensus/nodejs');
-const { JaegerTraceExporter } = require('@opencensus/exporter-jaeger');
 const { TraceContextFormat } = require('@opencensus/propagation-tracecontext');
 
 /**
@@ -27,39 +26,42 @@ const tracer = setupTracerAndExporters();
 
 const http = require('http');
 
-/** A function which makes requests and handles response. */
-function makeRequest () {
-  // Root spans typically correspond to incoming requests, while child spans
-  // typically correspond to outgoing requests. Here, we have manually created
-  // the root span, which is created to track work that happens outside of the
-  // request lifecycle entirely.
-  tracer.startRootSpan({ name: 'octutorialsClient.makeRequest' }, rootSpan => {
-    http.get({
-      host: 'localhost',
-      port: 8080,
-      path: '/helloworld'
-    }, (response) => {
-      let body = [];
-      response.on('data', chunk => body.push(chunk));
-      response.on('end', () => {
-        console.log(body.toString());
-        rootSpan.end();
-      });
-    });
+/** Starts a HTTP server that receives requests on sample server port. */
+function startServer (port) {
+  // Creates a server
+  const server = http.createServer(handleRequest);
+  // Starts the server
+  server.listen(port, err => {
+    if (err) {
+      throw err;
+    }
+    console.log(`Node HTTP listening on ${port}`);
   });
 }
 
+/** A function which handles requests and send response. */
+function handleRequest (request, response) {
+  const span = tracer.startChildSpan({ name: 'octutorials.handleRequest' });
+  try {
+    let body = [];
+    request.on('error', err => console.log(err));
+    request.on('data', chunk => body.push(chunk));
+    request.on('end', () => {
+      // deliberately sleeping to mock some action.
+      setTimeout(() => {
+        span.end();
+        response.end('Hello World!');
+      }, 5000);
+    });
+  } catch (err) {
+    console.log(err);
+    span.end();
+  }
+}
+
 function setupTracerAndExporters () {
-  const zipkinOptions = {
-    serviceName: 'opencensus_tutorial'
-  };
-
-  // Creates Zipkin exporter
-  const exporter = new JaegerTraceExporter(zipkinOptions);
-
   // Starts tracing and set sampling rate, exporter and propagation
   const tracer = tracing.start({
-    exporter,
     samplingRate: 1, // For demo purposes, always sample
     propagation: new TraceContextFormat(),
     logLevel: 1 // show errors, if any
@@ -68,4 +70,4 @@ function setupTracerAndExporters () {
   return tracer;
 }
 
-makeRequest();
+startServer(8080);
