@@ -158,6 +158,9 @@ export class CoreTracerBase implements types.TracerBase {
       const oTelSpan = this.oTelemetryTracer.startSpan(name, {
         kind: types.SPAN_KIND_MAPPING[kind],
         attributes: defaultAttributes,
+        parent: parentSpanId
+          ? { traceId, spanId: parentSpanId, traceFlags: spanContext.options }
+          : null,
       });
       const rootSpan = new RootSpan(
         this,
