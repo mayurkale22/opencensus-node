@@ -1,4 +1,0 @@
-1. In OT, links are only allowed when you create the span. What to do with
-addLink api in OC.
-2. In OT, MessageEvent is not yet supported.
-3. Is it ok to use addEvent for addAnnotation.
