@@ -403,12 +403,12 @@ export class Span implements types.Span {
     let spanKind = types.SpanKind.UNSPECIFIED;
     if (options && options.kind) spanKind = options.kind;
 
-    const childSpan = this.oTelTracer.startSpan(spanName, {
+    const oTelChildSpan = this.oTelTracer.startSpan(spanName, {
       kind: types.SPAN_KIND_MAPPING[spanKind],
       parent: this.oTelSpan.context(),
     });
 
-    const child = new Span(this.tracer, this.oTelTracer, childSpan, this);
+    const child = new Span(this.tracer, this.oTelTracer, oTelChildSpan, this);
     if (options && options.name) child.name = options.name;
     if (options && options.kind) child.kind = options.kind;
 
