@@ -45,6 +45,8 @@ export class CoreTracerBase implements types.TracerBase {
   private config!: configTypes.TracerConfig;
   /** A list of end span event listeners */
   private eventListenersLocal: types.SpanEventListener[] = [];
+  /** Bit to represent whether trace is sampled or not. */
+  private readonly IS_SAMPLED = 0x1;
   /** A sampler used to make sample decisions */
   sampler!: samplerTypes.Sampler;
   /** An object to log information */
@@ -102,9 +104,7 @@ export class CoreTracerBase implements types.TracerBase {
     this.oTelemetryTracer = new oTelTracing.BasicTracer({
       logger: this.logger,
       traceParams: this.activeTraceParams,
-      sampler: new oTelCore.ProbabilitySampler(
-        config.samplingRate || DEFAULT_SAMPLING_RATE
-      ),
+      sampler: oTelCore.ALWAYS_SAMPLER,
     });
     const exporter = new JaegerExporter({ serviceName: 'bridge' });
     this.oTelemetryTracer.addSpanProcessor(
@@ -154,26 +154,32 @@ export class CoreTracerBase implements types.TracerBase {
 
     // Tracer is active
     if (this.active) {
-      const defaultAttributes = this.config && this.config.defaultAttributes;
-      const oTelSpan = this.oTelemetryTracer.startSpan(name, {
-        kind: types.SPAN_KIND_MAPPING[kind],
-        attributes: defaultAttributes,
-        parent: parentSpanId
-          ? { traceId, spanId: parentSpanId, traceFlags: spanContext.options }
-          : null,
-      });
-      const rootSpan = new RootSpan(
-        this,
-        name,
-        kind,
-        traceId,
-        parentSpanId,
-        this.oTelemetryTracer,
-        oTelSpan,
-        traceState
-      );
-      rootSpan.start();
-      return fn(rootSpan);
+      const sampleDecision = this.makeSamplingDecision(options, traceId);
+      // Sampling is on
+      if (sampleDecision) {
+        const defaultAttributes = this.config && this.config.defaultAttributes;
+        const oTelSpan = this.oTelemetryTracer.startSpan(name, {
+          kind: types.SPAN_KIND_MAPPING[kind],
+          attributes: defaultAttributes,
+          parent: parentSpanId
+            ? { traceId, spanId: parentSpanId, traceFlags: spanContext.options }
+            : null,
+        });
+        const rootSpan = new RootSpan(
+          this,
+          name,
+          kind,
+          traceId,
+          parentSpanId,
+          this.oTelemetryTracer,
+          oTelSpan,
+          traceState
+        );
+        rootSpan.start();
+        return fn(rootSpan);
+      }
+      // Sampling is off
+      this.logger.debug('Sampling is off, starting new no record root span');
     } else {
       // Tracer is inactive
       this.logger.debug('Tracer is inactive, starting new no record root span');
@@ -256,5 +262,30 @@ export class CoreTracerBase implements types.TracerBase {
       });
     }
     return span;
+  }
+
+  /** Determine whether to sample request or not. */
+  private makeSamplingDecision(
+    options: types.TraceOptions,
+    traceId: string
+  ): boolean {
+    // If users set a specific sampler in the TraceOptions, use it.
+    if (
+      options &&
+      options.samplingRate !== undefined &&
+      options.samplingRate !== null
+    ) {
+      return SamplerBuilder.getSampler(options.samplingRate).shouldSample(
+        traceId
+      );
+    }
+    let propagatedSample = null;
+    // if there is a context propagation, keep the decision
+    if (options && options.spanContext && options.spanContext.options) {
+      propagatedSample = (options.spanContext.options & this.IS_SAMPLED) !== 0;
+    }
+
+    // Propagated sample or use the default global sampler
+    return !!propagatedSample || this.sampler.shouldSample(traceId);
   }
 }

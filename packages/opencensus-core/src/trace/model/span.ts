@@ -74,7 +74,9 @@ export class Span implements types.Span {
   droppedAnnotationsCount = 0;
   /** The number of dropped message events. */
   droppedMessageEventsCount = 0;
+  /** OpenTelemetry Tracer instance */
   oTelTracer: oTelTypes.Tracer;
+  /** OpenTelemetry Span instance */
   oTelSpan: oTelTypes.Span;
 
   /** Constructs a new Span instance. */

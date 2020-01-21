@@ -408,6 +408,12 @@ export interface Span {
   /** The number of dropped message events. */
   droppedMessageEventsCount: number;
 
+  /** OpenTelemetry Tracer instance */
+  oTelTracer: oTelTypes.Tracer;
+
+  /** OpenTelemetry Span instance */
+  oTelSpan: oTelTypes.Span;
+
   /**
    * Adds an atribute to the span.
    * @param key Describes the value added.

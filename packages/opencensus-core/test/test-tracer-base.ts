@@ -26,6 +26,7 @@ import { Span } from '../src/trace/model/span';
 import { CoreTracerBase } from '../src/trace/model/tracer-base';
 import * as types from '../src/trace/model/types';
 import { SpanEventListener } from '../src/trace/model/types';
+import * as oTelTracing from '@opentelemetry/tracing';
 
 class OnEndSpanClass implements SpanEventListener {
   /** Counter for test use */
@@ -241,22 +242,10 @@ describe('Tracer Base', () => {
     it('should create a tracer with default TraceParams when no parameters are specified upon initialisation', () => {
       const tracer = new CoreTracerBase();
       tracer.start(defaultConfig);
-      assert.strictEqual(
-        tracer.activeTraceParams.numberOfAnnontationEventsPerSpan,
-        undefined
-      );
-      assert.strictEqual(
-        tracer.activeTraceParams.numberOfAttributesPerSpan,
-        undefined
-      );
-      assert.strictEqual(
-        tracer.activeTraceParams.numberOfLinksPerSpan,
-        undefined
-      );
-      assert.strictEqual(
-        tracer.activeTraceParams.numberOfMessageEventsPerSpan,
-        undefined
-      );
+      const activeTraceParams = tracer.oTelemetryTracer.getActiveTraceParams();
+      assert.strictEqual(activeTraceParams.numberOfAttributesPerSpan, 32);
+      assert.strictEqual(activeTraceParams.numberOfLinksPerSpan, 32);
+      assert.strictEqual(activeTraceParams.numberOfEventsPerSpan, 128);
     });
 
     it('should create a tracer with default TraceParams when parameters with values higher than limit are specified upon initialisation', () => {
@@ -394,7 +383,10 @@ describe('Tracer Base', () => {
         for (let i = 0; i < 40; i++) {
           span.addAttribute(`attr ${i}`, i);
         }
-        assert.strictEqual(Object.keys(span.attributes).length, 40);
+        assert.strictEqual(
+          Object.keys((span.oTelSpan as oTelTracing.Span).attributes).length,
+          40
+        );
       });
     });
   });
@@ -439,10 +431,13 @@ describe('Tracer Base', () => {
     });
     it('should add attributes to spans', () => {
       assert.deepStrictEqual(
-        rootSpanLocal.attributes,
+        (rootSpanLocal.oTelSpan as oTelTracing.Span).attributes,
         tracerConfig.defaultAttributes
       );
-      assert.deepStrictEqual(span.attributes, tracerConfig.defaultAttributes);
+      assert.deepStrictEqual(
+        (span.oTelSpan as oTelTracing.Span).attributes,
+        tracerConfig.defaultAttributes
+      );
     });
   });
 
