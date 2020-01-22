@@ -59,9 +59,11 @@ export class RootSpan extends Span {
     this.name = name;
     this.kind = kind;
     this.parentSpanIdLocal = parentSpanId;
-    if (traceState) {
-      this.traceStateLocal = traceState;
+    const oTelSpanTraceState = oTelSpan.context().traceState;
+    if (oTelSpanTraceState) {
+      this.traceStateLocal = oTelSpanTraceState.serialize();
     }
+
     this.logger = tracer.logger || logger.logger();
     this.activeTraceParams = tracer.activeTraceParams;
   }

@@ -1,4 +1,10 @@
-1. In OT, links are only allowed when you create the span. What to do with addLink api in OC.
-2. In OT, MessageEvent is not yet supported.
-3. Is it ok to use addEvent for addAnnotation.
-4. Logs? OC debug logs or OT logs?
+Open Issues
+==============================================================================
+1. In OpenTelemetry API, links are only allowed when you create the span.
+   What to do with `addLink()` api in OC?
+2. In OpenTelemetry, `addMessageEvent()` is not yet supported. What to do with `type`, `uncompressedSize` and `compressedSize` in OC?
+3. Is it ok to use `addEvent()` for `addAnnotation()`?
+4. No droppedCount value available (attribute, events etc.)
+5. number of child span count missing.
+6. Should we remove code for register exporter and buffer and all?
+7. Logs? OC debug logs or OT logs?

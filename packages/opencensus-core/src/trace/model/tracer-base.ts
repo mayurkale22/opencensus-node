@@ -162,7 +162,12 @@ export class CoreTracerBase implements types.TracerBase {
           kind: types.SPAN_KIND_MAPPING[kind],
           attributes: defaultAttributes,
           parent: parentSpanId
-            ? { traceId, spanId: parentSpanId, traceFlags: spanContext.options }
+            ? {
+                traceId,
+                spanId: parentSpanId,
+                traceFlags: spanContext.options,
+                traceState: new oTelCore.TraceState(traceState),
+              }
             : null,
         });
         const rootSpan = new RootSpan(
