@@ -33,7 +33,6 @@ import { RootSpan } from './root-span';
 import * as types from './types';
 import * as oTelTracing from '@opentelemetry/tracing';
 import * as oTelCore from '@opentelemetry/core';
-import { JaegerExporter } from '@opentelemetry/exporter-jaeger';
 
 /**
  * This class represents a tracer.
@@ -54,7 +53,7 @@ export class CoreTracerBase implements types.TracerBase {
   /** A configuration object for trace parameters */
   activeTraceParams: TraceParams;
   /** OpenTelemetry bridge tracer instance */
-  oTelemetryTracer!: oTelTracing.BasicTracer;
+  oTelemetryTracer!: oTelTracing.Tracer;
 
   /** Constructs a new TraceImpl instance. */
   constructor() {
@@ -101,16 +100,13 @@ export class CoreTracerBase implements types.TracerBase {
       );
     }
 
-    this.oTelemetryTracer = new oTelTracing.BasicTracer({
+    const registry = new oTelTracing.BasicTracerRegistry({
       logger: this.logger,
       traceParams: this.activeTraceParams,
       sampler: oTelCore.ALWAYS_SAMPLER,
     });
-    const exporter = new JaegerExporter({ serviceName: 'bridge' });
-    this.oTelemetryTracer.addSpanProcessor(
-      new oTelTracing.SimpleSpanProcessor(exporter)
-    );
-
+    this.oTelemetryTracer = registry.getTracer('default');
+    oTelCore.initGlobalTracerRegistry(registry);
     return this;
   }
 

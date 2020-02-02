@@ -29,6 +29,10 @@ export interface Attributes {
   [attributeKey: string]: string | number | boolean;
 }
 
+export interface Attributes1 {
+  [attributeKey: string]: unknown;
+}
+
 /**
  * The status of a Span by providing a standard CanonicalCode in conjunction
  * with an optional descriptive message.
@@ -340,7 +344,7 @@ export interface Span {
   status: Status;
 
   /** A set of attributes, each in the format [KEY]:[VALUE] */
-  attributes: Attributes;
+  attributes: Attributes1;
 
   /** A text annotation with a set of attributes. */
   annotations: Annotation[];

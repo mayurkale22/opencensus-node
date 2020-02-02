@@ -21,6 +21,7 @@ import * as configTypes from '../config/types';
 import { NoRecordSpan } from './no-record/no-record-span';
 import * as types from './types';
 import * as oTelTypes from '@opentelemetry/types';
+import * as oTelTracing from '@opentelemetry/tracing';
 
 const STATUS_OK = {
   code: types.CanonicalCode.OK,
@@ -43,8 +44,6 @@ export class Span implements types.Span {
   readonly tracer: types.TracerBase;
   /** An object to log information to */
   logger: Logger = noopLogger;
-  /** A set of attributes, each in the format [KEY]:[VALUE] */
-  attributes: types.Attributes = {};
   /** A text annotation with a set of attributes. */
   annotations: types.Annotation[] = [];
   /** An event describing a message sent/received between Spans */
@@ -119,6 +118,10 @@ export class Span implements types.Span {
       return traceState.serialize();
     }
     return undefined;
+  }
+
+  get attributes(): types.Attributes1 {
+    return (this.oTelSpan as oTelTracing.Span).attributes;
   }
 
   /**

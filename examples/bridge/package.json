@@ -6,6 +6,10 @@
   },
   "dependencies": {
     "@opencensus/nodejs": "file:../../packages/opencensus-nodejs",
-    "@opencensus/propagation-tracecontext": "0.0.19"
+    "@opencensus/core": "file:../../packages/opencensus-core",
+    "@opencensus/propagation-tracecontext": "0.0.19",
+    "@opentelemetry/core": "0.3.3",
+    "@opentelemetry/tracing": "0.3.3",
+    "@opentelemetry/exporter-jaeger": "0.3.3"
   }
 }

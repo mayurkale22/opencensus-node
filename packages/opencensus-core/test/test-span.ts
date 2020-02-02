@@ -28,7 +28,9 @@ import * as oTelTracing from '@opentelemetry/tracing';
 
 const tracer = new CoreTracer();
 const oTelTracer = new NoopTracer();
-const oTelBasicTracer = new oTelTracing.BasicTracer();
+const oTelBasicTracer = new oTelTracing.BasicTracerRegistry().getTracer(
+  'default'
+);
 tracer.activeTraceParams = {
   numberOfAttributesPerSpan: 32,
   numberOfLinksPerSpan: 32,
@@ -344,20 +346,14 @@ describe('Span', () => {
       ['String', 'Number', 'Boolean'].map(attType => {
         span.addAttribute('testKey' + attType, 'testValue' + attType);
         assert.strictEqual(
-          (span.oTelSpan as oTelTracing.Span).attributes['testKey' + attType],
+          span.attributes['testKey' + attType],
           'testValue' + attType
         );
       });
       span.addAttribute('object', { foo: 'bar' });
-      assert.deepStrictEqual(
-        (span.oTelSpan as oTelTracing.Span).attributes['object'],
-        { foo: 'bar' }
-      );
+      assert.deepStrictEqual(span.attributes['object'], { foo: 'bar' });
       span.addAttribute('array', [1, 2, 3]);
-      assert.deepStrictEqual(
-        (span.oTelSpan as oTelTracing.Span).attributes['array'],
-        [1, 2, 3]
-      );
+      assert.deepStrictEqual(span.attributes['array'], [1, 2, 3]);
     });
 
     it('should drop extra attributes', () => {
@@ -379,10 +375,7 @@ describe('Span', () => {
         span.addAttribute('attr' + i, 100);
       }
 
-      assert.strictEqual(
-        Object.keys((span.oTelSpan as oTelTracing.Span).attributes).length,
-        32
-      );
+      assert.strictEqual(Object.keys(span.attributes).length, 32);
     });
   });
 

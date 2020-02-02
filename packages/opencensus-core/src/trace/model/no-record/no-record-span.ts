@@ -18,6 +18,7 @@ import { Logger } from '../../../common/types';
 import { randomSpanId } from '../../../internal/util';
 import * as configTypes from '../../config/types';
 import * as types from '../types';
+import * as oTelTypes from '@opentelemetry/types';
 
 const STATUS_OK = {
   code: types.CanonicalCode.OK,
@@ -66,6 +67,10 @@ export class NoRecordSpan implements types.Span {
   droppedAnnotationsCount = 0;
   /** The number of dropped message events. */
   droppedMessageEventsCount = 0;
+  /** OpenTelemetry Tracer instance */
+  oTelTracer!: oTelTypes.Tracer;
+  /** OpenTelemetry Span instance */
+  oTelSpan!: oTelTypes.Span;
 
   /** Constructs a new SpanBaseModel instance. */
   constructor(tracer: types.TracerBase, parent?: NoRecordSpan) {

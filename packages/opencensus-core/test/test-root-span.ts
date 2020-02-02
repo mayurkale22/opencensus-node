@@ -20,11 +20,12 @@ import { RootSpan } from '../src/trace/model/root-span';
 import { Span } from '../src/trace/model/span';
 import { CoreTracer } from '../src/trace/model/tracer';
 import * as types from '../src/trace/model/types';
-import { Annotation, Link } from '../src/trace/model/types';
 import * as oTelTracing from '@opentelemetry/tracing';
 
 const tracer = new CoreTracer();
-const oTelBasicTracer = new oTelTracing.BasicTracer();
+const oTelBasicTracer = new oTelTracing.BasicTracerRegistry().getTracer(
+  'default'
+);
 describe('RootSpan', () => {
   const name = 'MySpanName';
   const kind = types.SpanKind.SERVER;
@@ -373,9 +374,7 @@ describe('RootSpan', () => {
       ['String', 'Number', 'Boolean'].map(attType => {
         rootSpan.addAttribute('testKey' + attType, 'testValue' + attType);
         assert.strictEqual(
-          (rootSpan.oTelSpan as oTelTracing.Span).attributes[
-            'testKey' + attType
-          ],
+          rootSpan.attributes['testKey' + attType],
           'testValue' + attType
         );
       });

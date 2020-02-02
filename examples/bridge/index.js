@@ -15,10 +15,17 @@
  */
 
 const tracing = require('@opencensus/nodejs');
+const {SimpleSpanProcessor} = require('@opentelemetry/tracing');
+const {JaegerExporter} = require('@opentelemetry/exporter-jaeger');
 
 // 1. Get the global singleton Tracer object
 // 2. Configure 100% sample rate, otherwise, few traces will be sampled.
 const tracer = tracing.start({ samplingRate: 1 }).tracer;
+
+const opentelemetry = require('@opentelemetry/core');
+const exporter = new JaegerExporter({ serviceName: 'bridge' });
+const registry = opentelemetry.getTracerRegistry();
+registry.addSpanProcessor(new SimpleSpanProcessor(exporter));
 
 function main () {
   // 4. Create a span. A span must be closed.
